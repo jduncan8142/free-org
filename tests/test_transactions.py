@@ -83,7 +83,7 @@ def test_create_transaction_invalid_menu_item(client):
     transaction_data = {
         "menu_item_id": 999,  # Non-existent ID
         "quantity": 3,
-        "payment_method": PaymentMethod.CASH,
+        "payment_method": "cash",
     }
     response = client.post("/api/transactions/", json=transaction_data)
     assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -99,7 +99,7 @@ def test_create_transaction_menu_item_unavailable(client, session, test_data):
     session.add(menu_item)
     session.commit()
 
-    transaction_data = {"menu_item_id": menu_item.id, "quantity": 3, "payment_method": PaymentMethod.CASH}
+    transaction_data = {"menu_item_id": menu_item.id, "quantity": 3, "payment_method": "cash"}
     response = client.post("/api/transactions/", json=transaction_data)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert "not available" in response.json()["detail"].lower()
@@ -115,7 +115,7 @@ def test_create_transaction_card_without_square_id(client, test_data):
     transaction_data = {
         "menu_item_id": test_data["menu_item"].id,
         "quantity": 3,
-        "payment_method": PaymentMethod.CARD,
+        "payment_method": "card",
         "square_transaction_id": None,
     }
     response = client.post("/api/transactions/", json=transaction_data)
@@ -128,7 +128,7 @@ def test_create_transaction_invalid_window(client, test_data):
     transaction_data = {
         "menu_item_id": test_data["menu_item"].id,
         "quantity": 3,
-        "payment_method": PaymentMethod.CASH,
+        "payment_method": "cash",
         "window_id": 999,  # Non-existent ID
     }
     response = client.post("/api/transactions/", json=transaction_data)
@@ -148,7 +148,7 @@ def test_create_transaction_window_inactive(client, session, test_data):
     transaction_data = {
         "menu_item_id": test_data["menu_item"].id,
         "quantity": 3,
-        "payment_method": PaymentMethod.CASH,
+        "payment_method": "cash",
         "window_id": window.id,
     }
     response = client.post("/api/transactions/", json=transaction_data)
@@ -167,7 +167,7 @@ def test_create_transaction_inventory_update(client, session, test_data):
     inventory_item = test_data["inventory_item"]
     initial_quantity = inventory_item.quantity
 
-    transaction_data = {"menu_item_id": test_data["menu_item"].id, "quantity": 5, "payment_method": PaymentMethod.CASH}
+    transaction_data = {"menu_item_id": test_data["menu_item"].id, "quantity": 5, "payment_method": "cash"}
     response = client.post("/api/transactions/", json=transaction_data)
     assert response.status_code == status.HTTP_201_CREATED
 
