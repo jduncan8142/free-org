@@ -603,11 +603,14 @@ Stands{% endblock %} {% block content %}
         body: JSON.stringify(data),
       })
       .then(response => {
-        // Always process the JSON response even if status is not OK
-        // This allows us to get error details from the API
-        return response.json().then(data => {
-          // If response is not OK, attach the response object to the data for error handling
+        // Try to parse JSON response regardless of status
+        return response.json().catch(() => {
+          // If JSON parsing fails, return a simple object
+          return { success: response.ok };
+        }).then(data => {
+          // Check response status
           if (!response.ok) {
+            // Include response status with error data
             data.status = response.status;
             return Promise.reject(data);
           }
@@ -619,20 +622,28 @@ Stands{% endblock %} {% block content %}
         addWindowModal.hide();
         form.reset();
 
-        // Reload windows for this stand
-        loadWindows(standId);
+        // Reload windows for this stand with a short delay to ensure DOM updates
+        setTimeout(() => {
+          loadWindows(standId);
+        }, 100);
       })
       .catch(error => {
         console.error('Error:', error);
 
-        // Check if the error response contains a detail message from the API
+        // Close modal and reset form regardless of error
+        addWindowModal.hide();
+        form.reset();
+
+        // Only show alert for specific error messages
         if (error.detail) {
           alert(`Error: ${error.detail}`);
-        } else {
-          // If window was added but there was a display error, don't show an alert
-          // This prevents confusion when the window is actually added
-          loadWindows(standId);
         }
+
+        // Always reload windows list to show current state
+        // Use a short delay to ensure any backend operations complete
+        setTimeout(() => {
+          loadWindows(standId);
+        }, 300);
       });
     });
 
@@ -689,8 +700,18 @@ Stands{% endblock %} {% block content %}
     document.getElementById('windows-loading-row').classList.remove('d-none');
     document.getElementById('windows-empty-state').classList.add('d-none');
 
+    // Force browser to not use cached data
+    const timestamp = new Date().getTime();
+    const url = `/api/stands/${standId}/windows?_=${timestamp}`;
+
     // Fetch windows from API
-    fetch(`/api/stands/${standId}/windows`)
+    fetch(url, {
+      method: 'GET',
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    })
       .then(response => response.json())
       .then(windows => {
         // Hide loading row
@@ -704,7 +725,7 @@ Stands{% endblock %} {% block content %}
 
         // Populate table
         const tableBody = document.getElementById('windows-table').querySelector('tbody');
-        // Clear existing rows (except loading row which will be hidden)
+        // Clear existing rows
         tableBody.innerHTML = '';
 
         windows.forEach(window => {
