@@ -625,7 +625,8 @@ endblock %} {% block content %}
       });
   }
 
-  function loadInventoryItems(standId, targetElementId) {
+  // Function to load inventory items into a select dropdown
+  function loadInventoryItemsForSelect(standId, targetElementId) {
     // Clear existing options except the first one
     const select = document.getElementById(targetElementId);
     while (select.options.length > 1) {
@@ -657,6 +658,115 @@ endblock %} {% block content %}
       .catch(error => {
         console.error('Error loading inventory items:', error);
       });
+  }
+
+  // Function to add an inventory item to the list (for both add and edit forms)
+  function addInventoryItem(itemId, itemText, isEdit) {
+    // Determine which list and arrays to use
+    const itemsList = isEdit ? document.getElementById('edit-linked-inventory-items') : document.getElementById('linked-inventory-items');
+    const noItemsMessage = isEdit ? document.getElementById('edit-no-items-message') : document.getElementById('no-items-message');
+    const itemsArray = isEdit ? editLinkedInventoryItems : linkedInventoryItems;
+    const hiddenField = isEdit ? document.getElementById('edit-linked_inventory_ids') : document.getElementById('linked_inventory_ids');
+
+    // Check if item is already in the list
+    if (itemsArray.includes(itemId)) {
+      alert('This inventory item is already linked to the menu item.');
+      return;
+    }
+
+    // Add item to the array
+    itemsArray.push(itemId);
+
+    // Hide the "no items" message if this is the first item
+    if (noItemsMessage) {
+      noItemsMessage.style.display = 'none';
+    }
+
+    // Create a new list item
+    const listItem = document.createElement('li');
+    listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+    listItem.dataset.itemId = itemId;
+    listItem.innerHTML = `
+      <span>${itemText}</span>
+      <button type="button" class="btn btn-sm btn-outline-danger remove-inventory-item" data-item-id="${itemId}">
+        <i class="fas fa-times"></i>
+      </button>
+    `;
+
+    // Add the list item to the list
+    itemsList.appendChild(listItem);
+
+    // Update the hidden field with the current items
+    hiddenField.value = itemsArray.join(',');
+
+    // Add event listener to the remove button
+    listItem.querySelector('.remove-inventory-item').addEventListener('click', function() {
+      removeInventoryItem(itemId, isEdit);
+    });
+  }
+
+  // Function to remove an inventory item from the list
+  function removeInventoryItem(itemId, isEdit) {
+    // Determine which list and arrays to use
+    const itemsList = isEdit ? document.getElementById('edit-linked-inventory-items') : document.getElementById('linked-inventory-items');
+    const noItemsMessage = isEdit ? document.getElementById('edit-no-items-message') : document.getElementById('no-items-message');
+    let itemsArray = isEdit ? editLinkedInventoryItems : linkedInventoryItems;
+    const hiddenField = isEdit ? document.getElementById('edit-linked_inventory_ids') : document.getElementById('linked_inventory_ids');
+
+    // Remove the item from the array
+    itemsArray = itemsArray.filter(id => id !== itemId);
+
+    // Update the global array
+    if (isEdit) {
+      editLinkedInventoryItems = itemsArray;
+    } else {
+      linkedInventoryItems = itemsArray;
+    }
+
+    // Remove the list item from the DOM
+    const listItem = itemsList.querySelector(`li[data-item-id="${itemId}"]`);
+    if (listItem) {
+      itemsList.removeChild(listItem);
+    }
+
+    // Show the "no items" message if the list is now empty
+    if (itemsArray.length === 0 && noItemsMessage) {
+      noItemsMessage.style.display = 'block';
+    }
+
+    // Update the hidden field with the current items
+    hiddenField.value = itemsArray.join(',');
+  }
+
+  // Function to clear the inventory items list
+  function clearInventoryItems(isEdit) {
+    // Determine which list and arrays to use
+    const itemsList = isEdit ? document.getElementById('edit-linked-inventory-items') : document.getElementById('linked-inventory-items');
+    const noItemsMessage = isEdit ? document.getElementById('edit-no-items-message') : document.getElementById('no-items-message');
+    const hiddenField = isEdit ? document.getElementById('edit-linked_inventory_ids') : document.getElementById('linked_inventory_ids');
+
+    // Reset the array
+    if (isEdit) {
+      editLinkedInventoryItems = [];
+    } else {
+      linkedInventoryItems = [];
+    }
+
+    // Clear the list in the DOM (except for the "no items" message)
+    while (itemsList.firstChild) {
+      if (itemsList.firstChild === noItemsMessage) {
+        break;
+      }
+      itemsList.removeChild(itemsList.firstChild);
+    }
+
+    // Show the "no items" message
+    if (noItemsMessage) {
+      noItemsMessage.style.display = 'block';
+    }
+
+    // Clear the hidden field
+    hiddenField.value = '';
   }
 
   function loadMenuItems() {
