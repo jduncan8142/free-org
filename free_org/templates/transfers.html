@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Transfer Inventory{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-12">
+      <h1 class="mb-4">Transfer Inventory Between Stands</h1>
+      
+      <div class="card mb-4">
+        <div class="card-body">
+          <form id="transfer-form">
+            <div class="row g-3">
+              <!-- Source Stand Selection -->
+              <div class="col-md-6">
+                <label for="from-stand" class="form-label">From Stand</label>
+                <select class="form-select" id="from-stand" required>
+                  <option value="">-- Select Source Stand --</option>
+                  <!-- Will be populated via API -->
+                </select>
+              </div>
+              
+              <!-- Destination Stand Selection -->
+              <div class="col-md-6">
+                <label for="to-stand" class="form-label">To Stand</label>
+                <select class="form-select" id="to-stand" required>
+                  <option value="">-- Select Destination Stand --</option>
+                  <!-- Will be populated via API -->
+                </select>
+              </div>
+              
+              <!-- Item Selection (shown after source stand is selected) -->
+              <div class="col-12 mt-3 d-none" id="item-selection-container">
+                <label for="item-select" class="form-label">Select Item to Transfer</label>
+                <select class="form-select" id="item-select" required disabled>
+                  <option value="">-- Select Item --</option>
+                  <!-- Will be populated after source stand selection -->
+                </select>
+                <div class="form-text">Only items from the source stand will be shown.</div>
+              </div>
+              
+              <!-- Quantity Selection (shown after item is selected) -->
+              <div class="col-md-6 mt-3 d-none" id="quantity-container">
+                <label for="quantity" class="form-label">Quantity to Transfer</label>
+                <input type="number" class="form-control" id="quantity" min="1" value="1" required>
+                <div class="form-text">
+                  Available: <span id="available-quantity">0</span> <span id="item-unit"></span>
+                </div>
+              </div>
+              
+              <!-- Submit Button -->
+              <div class="col-12 mt-4">
+                <button type="submit" class="btn btn-primary" id="transfer-btn" disabled>
+                  <i class="fas fa-exchange-alt"></i> Transfer Inventory
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      
+      <!-- Transfer History -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Recent Transfers</h5>
+        </div>
+        <div class="card-body">
+          <div id="transfer-history"></div>
+          
+          <!-- Empty state -->
+          <div id="empty-history" class="text-center py-4">
+            <p class="text-muted">No recent transfers to display.</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Alert for feedback -->
+      <div class="mt-3">
+        <div class="alert alert-success d-none" id="success-alert">
+          Inventory transferred successfully!
+        </div>
+        <div class="alert alert-danger d-none" id="error-alert">
+          Error transferring inventory. Please try again.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Load all stands
+    fetch('/api/stands/')
+      .then(response => response.json())
+      .then(stands => {
+        const fromStandSelect = document.getElementById('from-stand');
+        const toStandSelect = document.getElementById('to-stand');
+        
+        // Populate stand dropdowns
+        stands.forEach(stand => {
+          // For source stand
+          const fromOption = document.createElement('option');
+          fromOption.value = stand.id;
+          fromOption.textContent = stand.name;
+          fromStandSelect.appendChild(fromOption);
+          
+          // For destination stand
+          const toOption = document.createElement('option');
+          toOption.value = stand.id;
+          toOption.textContent = stand.name;
+          toStandSelect.appendChild(toOption);
+        });
+      })
+      .catch(error => {
+        console.error('Error loading stands:', error);
+        showError('Error loading stands. Please refresh the page.');
+      });
+    
+    // Event listener for source stand selection
+    document.getElementById('from-stand').addEventListener('change', function() {
+      const fromStandId = this.value;
+      const toStandSelect = document.getElementById('to-stand');
+      const itemSelect = document.getElementById('item-select');
+      const itemContainer = document.getElementById('item-selection-container');
+      const quantityContainer = document.getElementById('quantity-container');
+      
+      // Reset item and quantity selection
+      itemSelect.innerHTML = '<option value="">-- Select Item --</option>';
+      document.getElementById('quantity').value = 1;
+      document.getElementById('available-quantity').textContent = '0';
+      document.getElementById('item-unit').textContent = '';
+      
+      // Hide containers if no stand selected
+      if (!fromStandId) {
+        itemContainer.classList.add('d-none');
+        quantityContainer.classList.add('d-none');
+        document.getElementById('transfer-btn').disabled = true;
+        return;
+      }
+      
+      // Load inventory for selected stand
+      fetch(`/api/stands/${fromStandId}/inventory`)
+        .then(response => response.json())
+        .then(items => {
+          // Show item selection
+          itemContainer.classList.remove('d-none');
+          itemSelect.disabled = false;
+          
+          // Hide quantity container until item is selected
+          quantityContainer.classList.add('d-none');
+          
+          // Populate item dropdown
+          if (items.length === 0) {
+            itemSelect.innerHTML = '<option value="">No items available</option>';
+            itemSelect.disabled = true;
+          } else {
+            items.forEach(item => {
+              const option = document.createElement('option');
+              option.value = item.id;
+              option.textContent = `${item.name} (${item.quantity} ${item.unit})`;
+              option.dataset.quantity = item.quantity;
+              option.dataset.unit = item.unit;
+              itemSelect.appendChild(option);
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Error loading inventory:', error);
+          showError('Error loading inventory items.');
+          itemContainer.classList.add('d-none');
+        });
+      
+      // Prevent selecting same stand for source and destination
+      Array.from(toStandSelect.options).forEach(option => {
+        if (option.value === fromStandId) {
+          option.disabled = true;
+        } else {
+          option.disabled = false;
+        }
+      });
+    });
+    
+    // Event listener for item selection
+    document.getElementById('item-select').addEventListener('change', function() {
+      const selectedOption = this.options[this.selectedIndex];
+      const quantityContainer = document.getElementById('quantity-container');
+      const transferBtn = document.getElementById('transfer-btn');
+      
+      if (this.value) {
+        // Show quantity selection
+        quantityContainer.classList.remove('d-none');
+        
+        // Update available quantity display
+        document.getElementById('available-quantity').textContent = selectedOption.dataset.quantity;
+        document.getElementById('item-unit').textContent = selectedOption.dataset.unit;
+        
+        // Enable transfer button if destination stand is also selected
+        if (document.getElementById('to-stand').value) {
+          transferBtn.disabled = false;
+        }
+        
+        // Set max quantity
+        document.getElementById('quantity').max = selectedOption.dataset.quantity;
+      } else {
+        quantityContainer.classList.add('d-none');
+        transferBtn.disabled = true;
+      }
+    });
+    
+    // Event listener for destination stand selection
+    document.getElementById('to-stand').addEventListener('change', function() {
+      // Enable transfer button if an item is also selected
+      if (this.value && document.getElementById('item-select').value) {
+        document.getElementById('transfer-btn').disabled = false;
+      } else {
+        document.getElementById('transfer-btn').disabled = true;
+      }
+    });
+    
+    // Form submission
+    document.getElementById('transfer-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const fromStandId = document.getElementById('from-stand').value;
+      const toStandId = document.getElementById('to-stand').value;
+      const itemId = document.getElementById('item-select').value;
+      const quantity = parseInt(document.getElementById('quantity').value);
+      
+      // Validate quantity
+      const availableQuantity = parseInt(document.getElementById('available-quantity').textContent);
+      if (quantity > availableQuantity) {
+        showError(`Cannot transfer more than available quantity (${availableQuantity}).`);
+        return;
+      }
+      
+      // Prepare query parameters
+      const queryParams = new URLSearchParams();
+      queryParams.append('item_id', itemId);
+      queryParams.append('quantity', quantity);
+      
+      // Submit transfer request
+      fetch(`/api/stands/${fromStandId}/transfer/${toStandId}?${queryParams.toString()}`, {
+        method: 'POST'
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(data => {
+            throw new Error(data.detail || 'Error transferring inventory');
+          });
+        }
+        return response.json();
+      })
+      .then(result => {
+        // Show success message
+        showSuccess(result.message);
+        
+        // Add to transfer history
+        addToHistory(fromStandId, toStandId, itemId, quantity);
+        
+        // Reset form
+        resetForm();
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showError(error.message);
+      });
+    });
+    
+    // Function to add transfer to history
+    function addToHistory(fromStandId, toStandId, itemId, quantity) {
+      // Hide empty state
+      document.getElementById('empty-history').classList.add('d-none');
+      
+      // Get stand names
+      const fromStandName = document.getElementById('from-stand').options[document.getElementById('from-stand').selectedIndex].text;
+      const toStandName = document.getElementById('to-stand').options[document.getElementById('to-stand').selectedIndex].text;
+      
+      // Get item name
+      const itemName = document.getElementById('item-select').options[document.getElementById('item-select').selectedIndex].text;
+      
+      // Create history entry
+      const historyDiv = document.getElementById('transfer-history');
+      
+      const entry = document.createElement('div');
+      entry.className = 'border-bottom py-2';
+      
+      const timestamp = new Date().toLocaleString();
+      
+      entry.innerHTML = `
+        <p class="mb-1"><strong>${quantity}</strong> of <strong>${itemName.split(' (')[0]}</strong></p>
+        <p class="mb-1">From: <strong>${fromStandName}</strong> → To: <strong>${toStandName}</strong></p>
+        <p class="text-muted mb-0 small">${timestamp}</p>
+      `;
+      
+      // Add to top of history
+      if (historyDiv.firstChild) {
+        historyDiv.insertBefore(entry, historyDiv.firstChild);
+      } else {
+        historyDiv.appendChild(entry);
+      }
+    }
+    
+    // Reset form after submission
+    function resetForm() {
+      // Reset selection fields
+      document.getElementById('from-stand').value = '';
+      document.getElementById('to-stand').value = '';
+      
+      // Hide item and quantity containers
+      document.getElementById('item-selection-container').classList.add('d-none');
+      document.getElementById('quantity-container').classList.add('d-none');
+      
+      // Reset item selection
+      const itemSelect = document.getElementById('item-select');
+      itemSelect.innerHTML = '<option value="">-- Select Item --</option>';
+      itemSelect.disabled = true;
+      
+      // Reset quantity
+      document.getElementById('quantity').value = 1;
+      
+      // Disable transfer button
+      document.getElementById('transfer-btn').disabled = true;
+    }
+    
+    // Show success message
+    function showSuccess(message) {
+      const alert = document.getElementById('success-alert');
+      alert.textContent = message;
+      alert.classList.remove('d-none');
+      
+      // Hide error alert if visible
+      document.getElementById('error-alert').classList.add('d-none');
+      
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        alert.classList.add('d-none');
+      }, 5000);
+    }
+    
+    // Show error message
+    function showError(message) {
+      const alert = document.getElementById('error-alert');
+      alert.textContent = message;
+      alert.classList.remove('d-none');
+      
+      // Hide success alert if visible
+      document.getElementById('success-alert').classList.add('d-none');
+      
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        alert.classList.add('d-none');
+      }, 5000);
+    }
+  });
+</script>
+{% endblock %}
