@@ -1,16 +1,26 @@
 from enum import Enum
-from typing import Optional, List
+from typing import Optional, List, ForwardRef
 from sqlmodel import Field, SQLModel, Relationship
 from datetime import datetime
 
+# Import the join table
+from free_org.db.models.menu_inventory import MenuItemInventory
+
+# Forward references to avoid circular imports
+ConcessionStand = ForwardRef("ConcessionStand")
+
+
 class ItemType(str, Enum):
     """Enum for inventory item types."""
+
     FOOD = "food"
     DRINK = "drink"
     SUPPLY = "supply"
 
+
 class ItemUnit(str, Enum):
     """Enum for inventory item units of measurement."""
+
     EACH = "each"
     BOX = "box"
     CASE = "case"
@@ -19,11 +29,12 @@ class ItemUnit(str, Enum):
     GALLON = "gallon"
     LITER = "liter"
 
+
 class InventoryItem(SQLModel, table=True):
     """Model representing an inventory item in a concession stand."""
-    
+
     __tablename__ = "inventory_items"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     description: Optional[str] = None
@@ -34,17 +45,18 @@ class InventoryItem(SQLModel, table=True):
     unit_cost: float = Field(default=0.0)  # Cost per unit
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    
+
     # Foreign key to stand
     stand_id: Optional[int] = Field(default=None, foreign_key="concession_stands.id")
-    
+
     # Relationships
     stand: Optional["ConcessionStand"] = Relationship(back_populates="inventory_items")
-    menu_items: List["MenuItem"] = Relationship(back_populates="inventory_item")
-    
+    # Replaced direct menu_items relationship with many-to-many
+    menu_item_inventories: List[MenuItemInventory] = Relationship(back_populates="inventory_item")
+
     def __repr__(self) -> str:
         return f"<InventoryItem(id={self.id}, name='{self.name}', type='{self.item_type}', quantity={self.quantity})>"
-    
+
     @property
     def is_available(self) -> bool:
         """Check if item has sufficient inventory to be on menu."""
