@@ -1,7 +1,12 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from sqlmodel import Field, SQLModel, Relationship
 from datetime import datetime
+
+if TYPE_CHECKING:
+    from free_org.db.models.menu import MenuItem
+    from free_org.db.models.stand import ConcessionStand
+    from free_org.db.models.window import Window
 
 class PaymentMethod(str, Enum):
     """Enum for payment methods."""
@@ -25,10 +30,12 @@ class Transaction(SQLModel, table=True):
     # Foreign keys
     menu_item_id: int = Field(foreign_key="menu_items.id")
     stand_id: int = Field(foreign_key="concession_stands.id")
+    window_id: Optional[int] = Field(default=None, foreign_key="windows.id")
     
     # Relationships
     menu_item: "MenuItem" = Relationship(back_populates="transactions")
     stand: "ConcessionStand" = Relationship()
+    window: Optional["Window"] = Relationship(back_populates="transactions")
     
     def __repr__(self) -> str:
         return f"<Transaction(id={self.id}, amount=${self.total_amount:.2f}, method={self.payment_method})>"
@@ -36,8 +43,9 @@ class Transaction(SQLModel, table=True):
     @classmethod
     def create_from_menu_item(cls, menu_item: "MenuItem", quantity: int = 1, 
                               payment_method: PaymentMethod = PaymentMethod.CASH,
-                              square_transaction_id: Optional[str] = None) -> "Transaction":
-        """Create a transaction from a menu item."""
+                              square_transaction_id: Optional[str] = None,
+                              window_id: Optional[int] = None) -> "Transaction":
+            window_id=window_id,        """Create a transaction from a menu item."""
         return cls(
             menu_item_id=menu_item.id,
             stand_id=menu_item.stand_id,
