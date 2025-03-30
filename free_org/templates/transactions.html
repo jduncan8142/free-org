@@ -420,682 +420,681 @@ endblock %} {% block content %}
 </div>
 
 <script>
-    // Current page for pagination
-    let currentPage = 1;
-    let pageSize = 10;
-    let totalTransactions = 0;
+  // Current page for pagination
+  let currentPage = 1;
+  let pageSize = 10;
+  let totalTransactions = 0;
 
-    document.addEventListener('DOMContentLoaded', function() {
-      // Set today's date as default "to" date
-      const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
-      document.getElementById('date-to').value = todayStr;
+  document.addEventListener('DOMContentLoaded', function() {
+    // Set today's date as default "to" date
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    document.getElementById('date-to').value = todayStr;
 
-      // Set 7 days ago as default "from" date
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(today.getDate() - 7);
-      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
-      document.getElementById('date-from').value = sevenDaysAgoStr;
+    // Set 7 days ago as default "from" date
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+    document.getElementById('date-from').value = sevenDaysAgoStr;
 
-      // Load stands
-      loadStands();
+    // Load stands
+    loadStands();
 
-      // Load transactions with default filters
+    // Load transactions with default filters
+    loadTransactions();
+
+    // Event listeners
+    document.getElementById('apply-filters-btn').addEventListener('click', function() {
+      currentPage = 1;
       loadTransactions();
-
-      // Event listeners
-      document.getElementById('apply-filters-btn').addEventListener('click', function() {
-        currentPage = 1;
-        loadTransactions();
-      });
-
-      document.getElementById('reset-filters-btn').addEventListener('click', function() {
-        document.getElementById('filter-form').reset();
-        document.getElementById('date-to').value = todayStr;
-        document.getElementById('date-from').value = sevenDaysAgoStr;
-        currentPage = 1;
-        loadTransactions();
-      });
-
-      // Stand selection change in add transaction form
-      document.getElementById('stand_id').addEventListener('change', function() {
-        const standId = this.value;
-        if (standId) {
-          loadMenuItems(standId);
-        } else {
-          const menuItemSelect = document.getElementById('menu_item_id');
-          menuItemSelect.innerHTML = '<option value="">-- Select Menu Item --</option>';
-          menuItemSelect.disabled = true;
-        }
-      });
-
-      // Menu item selection change
-      document.getElementById('menu_item_id').addEventListener('change', function() {
-        const menuItemId = this.value;
-        if (menuItemId) {
-          // Load menu item details to get price
-          fetch(`/api/menu/${menuItemId}`)
-            .then(response => response.json())
-            .then(item => {
-              // Set unit price
-              document.getElementById('unit_price').value = item.price;
-
-              // Calculate total
-              calculateTotal();
-            })
-            .catch(error => {
-              console.error('Error:', error);
-            });
-        } else {
-          document.getElementById('unit_price').value = '';
-          document.getElementById('total_amount').value = '';
-        }
-      });
-
-      // Quantity change
-      document.getElementById('quantity').addEventListener('input', calculateTotal);
-
-      // Payment method change
-      document.getElementById('payment_method').addEventListener('change', function() {
-        const squareField = document.getElementById('square-transaction-field');
-        if (this.value === 'CREDIT_CARD') {
-          squareField.classList.remove('d-none');
-        } else {
-          squareField.classList.add('d-none');
-        }
-      });
-
-      // Save transaction button
-      document.getElementById('save-transaction-btn').addEventListener('click', saveTransaction);
-
-      // Export to CSV button
-      document.getElementById('export-csv-btn').addEventListener('click', exportToCSV);
-
-      // Print report button
-      document.getElementById('print-report-btn').addEventListener('click', printReport);
     });
 
-    function loadStands() {
-      fetch('/api/stands/')
-        .then(response => response.json())
-        .then(stands => {
-          // Populate stand filter dropdown
-          const standFilter = document.getElementById('stand-filter');
+    document.getElementById('reset-filters-btn').addEventListener('click', function() {
+      document.getElementById('filter-form').reset();
+      document.getElementById('date-to').value = todayStr;
+      document.getElementById('date-from').value = sevenDaysAgoStr;
+      currentPage = 1;
+      loadTransactions();
+    });
 
-          // Populate stand select in transaction form
-          const standSelect = document.getElementById('stand_id');
-
-          stands.forEach(stand => {
-            // For filter
-            const filterOption = document.createElement('option');
-            filterOption.value = stand.id;
-            filterOption.textContent = stand.name;
-            standFilter.appendChild(filterOption);
-
-            // For form
-            const formOption = document.createElement('option');
-            formOption.value = stand.id;
-            formOption.textContent = stand.name;
-            standSelect.appendChild(formOption);
-          });
-        })
-        .catch(error => {
-          console.error('Error loading stands:', error);
-        });
-    }
-
-    function loadMenuItems(standId) {
-      const menuItemSelect = document.getElementById('menu_item_id');
-      const noItemsMessage = document.getElementById('no-menu-items-message');
-
-      // Show loading state
-      menuItemSelect.innerHTML = '<option value="">Loading menu items...</option>';
-      menuItemSelect.disabled = true;
-      noItemsMessage.classList.add('d-none');
-
-      // Fetch menu items for the selected stand
-      fetch(`/api/menu/?stand_id=${standId}`)
-        .then(response => response.json())
-        .then(items => {
-          // Clear and re-enable select
-          menuItemSelect.innerHTML = '<option value="">-- Select Menu Item --</option>';
-
-          if (items.length === 0) {
-            menuItemSelect.disabled = true;
-            noItemsMessage.classList.remove('d-none');
-          } else {
-            menuItemSelect.disabled = false;
-            noItemsMessage.classList.add('d-none');
-
-            items.forEach(item => {
-              const option = document.createElement('option');
-              option.value = item.id;
-              option.textContent = `${item.name} - $${item.price.toFixed(2)}`;
-              menuItemSelect.appendChild(option);
-            });
-          }
-        })
-        .catch(error => {
-          console.error('Error loading menu items:', error);
-          menuItemSelect.innerHTML = '<option value="">Error loading items</option>';
-          menuItemSelect.disabled = true;
-        });
-    }
-
-    function calculateTotal() {
-      const unitPrice = parseFloat(document.getElementById('unit_price').value) || 0;
-      const quantity = parseInt(document.getElementById('quantity').value) || 0;
-      const total = unitPrice * quantity;
-
-      document.getElementById('total_amount').value = total.toFixed(2);
-    }
-
-    function saveTransaction() {
-      const form = document.getElementById('add-transaction-form');
-
-      if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-      }
-
-      // Collect form data
-      const standId = parseInt(document.getElementById('stand_id').value);
-      const menuItemId = parseInt(document.getElementById('menu_item_id').value);
-      const quantity = parseInt(document.getElementById('quantity').value);
-      const unitPrice = parseFloat(document.getElementById('unit_price').value);
-      const totalAmount = parseFloat(document.getElementById('total_amount').value);
-      const paymentMethod = document.getElementById('payment_method').value;
-      const squareTransactionId = document.getElementById('square_transaction_id').value || null;
-      const notes = document.getElementById('notes').value || null;
-
-      // Create transaction object
-      const transaction = {
-        menu_item_id: menuItemId,
-        stand_id: standId,
-        quantity: quantity,
-        unit_price: unitPrice,
-        total_amount: totalAmount,
-        payment_method: paymentMethod,
-        square_transaction_id: squareTransactionId,
-        notes: notes
-      };
-
-      // Submit to API
-      fetch('/api/transactions/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(transaction),
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Error creating transaction');
-        }
-        return response.json();
-      })
-      .then(result => {
-        // Close modal and reset form
-        const modal = bootstrap.Modal.getInstance(document.getElementById('addTransactionModal'));
-        modal.hide();
-        form.reset();
-
-        // Reload transactions
-        loadTransactions();
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        alert('Error creating transaction');
-      });
-    }
-
-    function loadTransactions() {
-      // Show loading state
-      document.getElementById('loading-row').classList.remove('d-none');
-      document.getElementById('empty-state').classList.add('d-none');
-
-      // Get filter values
-      const standId = document.getElementById('stand-filter').value;
-      const paymentMethod = document.getElementById('payment-filter').value;
-      const dateFrom = document.getElementById('date-from').value;
-      const dateTo = document.getElementById('date-to').value;
-
-      // Build query string
-      let queryParams = new URLSearchParams();
-
+    // Stand selection change in add transaction form
+    document.getElementById('stand_id').addEventListener('change', function() {
+      const standId = this.value;
       if (standId) {
-        queryParams.append('stand_id', standId);
+        loadMenuItems(standId);
+      } else {
+        const menuItemSelect = document.getElementById('menu_item_id');
+        menuItemSelect.innerHTML = '<option value="">-- Select Menu Item --</option>';
+        menuItemSelect.disabled = true;
       }
+    });
 
-      if (paymentMethod) {
-        queryParams.append('payment_method', paymentMethod);
-      }
-
-      if (dateFrom) {
-        // Add time to make it start of day
-        queryParams.append('date_from', `${dateFrom}T00:00:00`);
-      }
-
-      if (dateTo) {
-        // Add time to make it end of day
-        queryParams.append('date_to', `${dateTo}T23:59:59`);
-      }
-
-      // Add pagination
-      queryParams.append('skip', (currentPage - 1) * pageSize);
-      queryParams.append('limit', pageSize);
-
-      // Fetch transactions with filters
-      fetch(`/api/transactions/?${queryParams.toString()}`)
-        .then(response => response.json())
-        .then(transactions => {
-          // Hide loading state
-          document.getElementById('loading-row').classList.add('d-none');
-
-          // Check if empty
-          if (transactions.length === 0 && currentPage === 1) {
-            document.getElementById('empty-state').classList.remove('d-none');
-            updateStats([]);
-            updatePagination(0);
-            return;
-          }
-
-          // Get all transactions for statistics (without pagination)
-          // In a real implementation, this would be a separate API endpoint with aggregated stats
-          let statsParams = new URLSearchParams(queryParams);
-          statsParams.delete('skip');
-          statsParams.delete('limit');
-
-          fetch(`/api/transactions/?${statsParams.toString()}`)
-            .then(response => response.json())
-            .then(allTransactions => {
-              updateStats(allTransactions);
-              updatePagination(allTransactions.length);
-            })
-            .catch(error => {
-              console.error('Error loading stats:', error);
-            });
-
-          // Populate table with transactions
-          const tableBody = document.getElementById('transactions-table').querySelector('tbody');
-
-          // Clear existing rows (except loading row)
-          tableBody.innerHTML = '';
-          tableBody.appendChild(document.getElementById('loading-row'));
-          document.getElementById('loading-row').classList.add('d-none');
-
-          // Create rows for transactions
-          Promise.all(
-            transactions.map(transaction => {
-              return Promise.all([
-                // Get stand details
-                fetch(`/api/stands/${transaction.stand_id}`).then(res => res.json()),
-                // Get menu item details
-                fetch(`/api/menu/${transaction.menu_item_id}`).then(res => res.json())
-              ]).then(([stand, menuItem]) => {
-                const row = document.createElement('tr');
-
-                // Format date
-                const date = new Date(transaction.created_at);
-                const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-
-                // Create row cells
-                row.innerHTML = `
-                  <td>${transaction.id}</td>
-                  <td>${formattedDate}</td>
-                  <td>${menuItem.name}</td>
-                  <td>${stand.name}</td>
-                  <td>${transaction.quantity}</td>
-                  <td>$${transaction.unit_price.toFixed(2)}</td>
-                  <td>$${transaction.total_amount.toFixed(2)}</td>
-                  <td>
-                    ${transaction.payment_method === 'CASH'
-                      ? '<span class="badge bg-success">Cash</span>'
-                      : '<span class="badge bg-info">Credit Card</span>'}
-                  </td>
-                  <td>
-                    <button type="button" class="btn btn-sm btn-outline-secondary view-btn" data-id="${transaction.id}">
-                      <i class="fas fa-eye"></i>
-                    </button>
-                  </td>
-                `;
-
-                return row;
-              });
-            })
-          ).then(rows => {
-            rows.forEach(row => {
-              tableBody.appendChild(row);
-            });
-
-            // Add event listeners to view buttons
-            document.querySelectorAll('.view-btn').forEach(btn => {
-              btn.addEventListener('click', function() {
-                viewTransaction(this.getAttribute('data-id'));
-              });
-            });
-          });
-        })
-        .catch(error => {
-          console.error('Error loading transactions:', error);
-
-          // Show error message
-          const tableBody = document.getElementById('transactions-table').querySelector('tbody');
-          tableBody.innerHTML = `
-            <tr>
-              <td colspan="9" class="text-center py-4 text-danger">
-                <i class="fas fa-exclamation-circle fa-2x mb-3"></i>
-                <p>Error loading transactions. Please try again.</p>
-              </td>
-            </tr>
-          `;
-        });
-    }
-
-    function updateStats(transactions) {
-      // Calculate stats from transactions
-      let totalSales = 0;
-      let cashSales = 0;
-      let cardSales = 0;
-      let cashCount = 0;
-      let cardCount = 0;
-
-      // Track quantities sold per menu item
-      let itemSales = {};
-
-      transactions.forEach(transaction => {
-        totalSales += transaction.total_amount;
-
-        if (transaction.payment_method === 'CASH') {
-          cashSales += transaction.total_amount;
-          cashCount++;
-        } else {
-          cardSales += transaction.total_amount;
-          cardCount++;
-        }
-
-        // Track item sales
-        if (!itemSales[transaction.menu_item_id]) {
-          itemSales[transaction.menu_item_id] = {
-            id: transaction.menu_item_id,
-            quantity: 0,
-            name: null
-          };
-        }
-
-        itemSales[transaction.menu_item_id].quantity += transaction.quantity;
-      });
-
-      // Update stats display
-      document.getElementById('total-sales').textContent = `$${totalSales.toFixed(2)}`;
-      document.getElementById('transactions-count').textContent = `${transactions.length} transactions`;
-
-      document.getElementById('cash-sales').textContent = `$${cashSales.toFixed(2)}`;
-      document.getElementById('cash-count').textContent = `${cashCount} transactions`;
-
-      document.getElementById('card-sales').textContent = `$${cardSales.toFixed(2)}`;
-      document.getElementById('card-count').textContent = `${cardCount} transactions`;
-
-      // Find top selling item
-      if (Object.keys(itemSales).length > 0) {
-        let topItem = Object.values(itemSales).reduce((max, item) =>
-          max.quantity > item.quantity ? max : item
-        );
-
-        // Get the menu item name
-        fetch(`/api/menu/${topItem.id}`)
+    // Menu item selection change
+    document.getElementById('menu_item_id').addEventListener('change', function() {
+      const menuItemId = this.value;
+      if (menuItemId) {
+        // Load menu item details to get price
+        fetch(`/api/menu/${menuItemId}`)
           .then(response => response.json())
-          .then(menuItem => {
-            document.getElementById('top-item').textContent = menuItem.name;
-            document.getElementById('top-item-qty').textContent = `${topItem.quantity} sold`;
+          .then(item => {
+            // Set unit price
+            document.getElementById('unit_price').value = item.price;
+
+            // Calculate total
+            calculateTotal();
           })
           .catch(error => {
-            console.error('Error fetching top item details:', error);
+            console.error('Error:', error);
           });
       } else {
-        document.getElementById('top-item').textContent = '—';
-        document.getElementById('top-item-qty').textContent = '0 sold';
+        document.getElementById('unit_price').value = '';
+        document.getElementById('total_amount').value = '';
       }
-    }
+    });
 
-    function updatePagination(totalCount) {
-      totalTransactions = totalCount;
-      const totalPages = Math.ceil(totalCount / pageSize);
+    // Quantity change
+    document.getElementById('quantity').addEventListener('input', calculateTotal);
 
-      // Update results count text
-      const startItem = Math.min((currentPage - 1) * pageSize + 1, totalCount);
-      const endItem = Math.min(currentPage * pageSize, totalCount);
-
-      if (totalCount > 0) {
-        document.getElementById('results-count').textContent =
-          `Showing ${startItem}-${endItem} of ${totalCount} transactions`;
+    // Payment method change
+    document.getElementById('payment_method').addEventListener('change', function() {
+      const squareField = document.getElementById('square-transaction-field');
+      if (this.value === 'CREDIT_CARD') {
+        squareField.classList.remove('d-none');
       } else {
-        document.getElementById('results-count').textContent = 'No transactions found';
+        squareField.classList.add('d-none');
       }
+    });
 
-      // Update pagination controls
-      const pagination = document.getElementById('pagination');
-      pagination.innerHTML = '';
+    // Save transaction button
+    document.getElementById('save-transaction-btn').addEventListener('click', saveTransaction);
 
-      if (totalPages <= 1) {
-        return;
-      }
+    // Export to CSV button
+    document.getElementById('export-csv-btn').addEventListener('click', exportToCSV);
 
-      // Previous button
-      const prevLi = document.createElement('li');
-      prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
-      prevLi.innerHTML = `
-        <a class="page-link" href="#" aria-label="Previous" ${currentPage > 1 ? 'data-page="' + (currentPage - 1) + '"' : ''}>
-          <span aria-hidden="true">&laquo;</span>
-        </a>
-      `;
-      pagination.appendChild(prevLi);
+    // Print report button
+    document.getElementById('print-report-btn').addEventListener('click', printReport);
+  });
 
-      // Page numbers
-      const maxPages = 5; // Show max 5 page numbers
-      const startPage = Math.max(1, currentPage - Math.floor(maxPages / 2));
-      const endPage = Math.min(totalPages, startPage + maxPages - 1);
+  function loadStands() {
+    fetch('/api/stands/')
+      .then(response => response.json())
+      .then(stands => {
+        // Populate stand filter dropdown
+        const standFilter = document.getElementById('stand-filter');
 
-      for (let i = startPage; i <= endPage; i++) {
-        const pageLi = document.createElement('li');
-        pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
-        pageLi.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
-        pagination.appendChild(pageLi);
-      }
+        // Populate stand select in transaction form
+        const standSelect = document.getElementById('stand_id');
 
-      // Next button
-      const nextLi = document.createElement('li');
-      nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
-      nextLi.innerHTML = `
-        <a class="page-link" href="#" aria-label="Next" ${currentPage < totalPages ? 'data-page="' + (currentPage + 1) + '"' : ''}>
-          <span aria-hidden="true">&raquo;</span>
-        </a>
-      `;
-      pagination.appendChild(nextLi);
+        stands.forEach(stand => {
+          // For filter
+          const filterOption = document.createElement('option');
+          filterOption.value = stand.id;
+          filterOption.textContent = stand.name;
+          standFilter.appendChild(filterOption);
 
-      // Add event listeners to pagination links
-      document.querySelectorAll('.page-link[data-page]').forEach(link => {
-        link.addEventListener('click', function(e) {
-          e.preventDefault();
-          currentPage = parseInt(this.getAttribute('data-page'));
-          loadTransactions();
+          // For form
+          const formOption = document.createElement('option');
+          formOption.value = stand.id;
+          formOption.textContent = stand.name;
+          standSelect.appendChild(formOption);
         });
+      })
+      .catch(error => {
+        console.error('Error loading stands:', error);
       });
+  }
+
+  function loadMenuItems(standId) {
+    const menuItemSelect = document.getElementById('menu_item_id');
+    const noItemsMessage = document.getElementById('no-menu-items-message');
+
+    // Show loading state
+    menuItemSelect.innerHTML = '<option value="">Loading menu items...</option>';
+    menuItemSelect.disabled = true;
+    noItemsMessage.classList.add('d-none');
+
+    // Fetch menu items for the selected stand
+    fetch(`/api/menu/?stand_id=${standId}`)
+      .then(response => response.json())
+      .then(items => {
+        // Clear and re-enable select
+        menuItemSelect.innerHTML = '<option value="">-- Select Menu Item --</option>';
+
+        if (items.length === 0) {
+          menuItemSelect.disabled = true;
+          noItemsMessage.classList.remove('d-none');
+        } else {
+          menuItemSelect.disabled = false;
+          noItemsMessage.classList.add('d-none');
+
+          items.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = `${item.name} - $${item.price.toFixed(2)}`;
+            menuItemSelect.appendChild(option);
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error loading menu items:', error);
+        menuItemSelect.innerHTML = '<option value="">Error loading items</option>';
+        menuItemSelect.disabled = true;
+      });
+  }
+
+  function calculateTotal() {
+    const unitPrice = parseFloat(document.getElementById('unit_price').value) || 0;
+    const quantity = parseInt(document.getElementById('quantity').value) || 0;
+    const total = unitPrice * quantity;
+
+    document.getElementById('total_amount').value = total.toFixed(2);
+  }
+
+  function saveTransaction() {
+    const form = document.getElementById('add-transaction-form');
+
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
     }
 
-    function viewTransaction(id) {
-      fetch(`/api/transactions/${id}`)
-        .then(response => response.json())
-        .then(transaction => {
-          // Get related data
-          Promise.all([
-            fetch(`/api/stands/${transaction.stand_id}`).then(res => res.json()),
-            fetch(`/api/menu/${transaction.menu_item_id}`).then(res => res.json())
-          ]).then(([stand, menuItem]) => {
-            // Format date
-            const date = new Date(transaction.created_at);
-            const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    // Collect form data
+    const standId = parseInt(document.getElementById('stand_id').value);
+    const menuItemId = parseInt(document.getElementById('menu_item_id').value);
+    const quantity = parseInt(document.getElementById('quantity').value);
+    const unitPrice = parseFloat(document.getElementById('unit_price').value);
+    const totalAmount = parseFloat(document.getElementById('total_amount').value);
+    const paymentMethod = document.getElementById('payment_method').value;
+    const squareTransactionId = document.getElementById('square_transaction_id').value || null;
+    const notes = document.getElementById('notes').value || null;
 
-            // Populate details
-            document.getElementById('transaction-details-content').innerHTML = `
-              <div class="mb-3 pb-3 border-bottom">
-                <h6 class="text-muted">Transaction #${transaction.id}</h6>
-                <p class="mb-0"><strong>Date/Time:</strong> ${formattedDate}</p>
-              </div>
+    // Create transaction object
+    const transaction = {
+      menu_item_id: menuItemId,
+      stand_id: standId,
+      quantity: quantity,
+      unit_price: unitPrice,
+      total_amount: totalAmount,
+      payment_method: paymentMethod,
+      square_transaction_id: squareTransactionId,
+      notes: notes
+    };
 
-              <div class="mb-3 pb-3 border-bottom">
-                <h6>Item Details</h6>
-                <p class="mb-0"><strong>Item:</strong> ${menuItem.name}</p>
-                <p class="mb-0"><strong>Quantity:</strong> ${transaction.quantity}</p>
-                <p class="mb-0"><strong>Unit Price:</strong> $${transaction.unit_price.toFixed(2)}</p>
-                <p class="mb-0"><strong>Total Amount:</strong> $${transaction.total_amount.toFixed(2)}</p>
-              </div>
+    // Submit to API
+    fetch('/api/transactions/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(transaction),
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Error creating transaction');
+      }
+      return response.json();
+    })
+    .then(result => {
+      // Close modal and reset form
+      const modal = bootstrap.Modal.getInstance(document.getElementById('addTransactionModal'));
+      modal.hide();
+      form.reset();
 
-              <div class="mb-3 pb-3 border-bottom">
-                <h6>Payment Information</h6>
-                <p class="mb-0">
-                  <strong>Method:</strong>
+      // Reload transactions
+      loadTransactions();
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error creating transaction');
+    });
+  }
+
+  function loadTransactions() {
+    // Show loading state
+    document.getElementById('loading-row').classList.remove('d-none');
+    document.getElementById('empty-state').classList.add('d-none');
+
+    // Get filter values
+    const standId = document.getElementById('stand-filter').value;
+    const paymentMethod = document.getElementById('payment-filter').value;
+    const dateFrom = document.getElementById('date-from').value;
+    const dateTo = document.getElementById('date-to').value;
+
+    // Build query string
+    let queryParams = new URLSearchParams();
+
+    if (standId) {
+      queryParams.append('stand_id', standId);
+    }
+
+    if (paymentMethod) {
+      queryParams.append('payment_method', paymentMethod);
+    }
+
+    if (dateFrom) {
+      // Add time to make it start of day
+      queryParams.append('date_from', `${dateFrom}T00:00:00`);
+    }
+
+    if (dateTo) {
+      // Add time to make it end of day
+      queryParams.append('date_to', `${dateTo}T23:59:59`);
+    }
+
+    // Add pagination
+    queryParams.append('skip', (currentPage - 1) * pageSize);
+    queryParams.append('limit', pageSize);
+
+    // Fetch transactions with filters
+    fetch(`/api/transactions/?${queryParams.toString()}`)
+      .then(response => response.json())
+      .then(transactions => {
+        // Hide loading state
+        document.getElementById('loading-row').classList.add('d-none');
+
+        // Check if empty
+        if (transactions.length === 0 && currentPage === 1) {
+          document.getElementById('empty-state').classList.remove('d-none');
+          updateStats([]);
+          updatePagination(0);
+          return;
+        }
+
+        // Get all transactions for statistics (without pagination)
+        // In a real implementation, this would be a separate API endpoint with aggregated stats
+        let statsParams = new URLSearchParams(queryParams);
+        statsParams.delete('skip');
+        statsParams.delete('limit');
+
+        fetch(`/api/transactions/?${statsParams.toString()}`)
+          .then(response => response.json())
+          .then(allTransactions => {
+            updateStats(allTransactions);
+            updatePagination(allTransactions.length);
+          })
+          .catch(error => {
+            console.error('Error loading stats:', error);
+          });
+
+        // Populate table with transactions
+        const tableBody = document.getElementById('transactions-table').querySelector('tbody');
+
+        // Clear existing rows (except loading row)
+        tableBody.innerHTML = '';
+        tableBody.appendChild(document.getElementById('loading-row'));
+        document.getElementById('loading-row').classList.add('d-none');
+
+        // Create rows for transactions
+        Promise.all(
+          transactions.map(transaction => {
+            return Promise.all([
+              // Get stand details
+              fetch(`/api/stands/${transaction.stand_id}`).then(res => res.json()),
+              // Get menu item details
+              fetch(`/api/menu/${transaction.menu_item_id}`).then(res => res.json())
+            ]).then(([stand, menuItem]) => {
+              const row = document.createElement('tr');
+
+              // Format date
+              const date = new Date(transaction.created_at);
+              const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+
+              // Create row cells
+              row.innerHTML = `
+                <td>${transaction.id}</td>
+                <td>${formattedDate}</td>
+                <td>${menuItem.name}</td>
+                <td>${stand.name}</td>
+                <td>${transaction.quantity}</td>
+                <td>$${transaction.unit_price.toFixed(2)}</td>
+                <td>$${transaction.total_amount.toFixed(2)}</td>
+                <td>
                   ${transaction.payment_method === 'CASH'
                     ? '<span class="badge bg-success">Cash</span>'
                     : '<span class="badge bg-info">Credit Card</span>'}
-                </p>
-                ${transaction.square_transaction_id
-                  ? `<p class="mb-0"><strong>Square Transaction ID:</strong> ${transaction.square_transaction_id}</p>`
-                  : ''}
-              </div>
+                </td>
+                <td>
+                  <button type="button" class="btn btn-sm btn-outline-secondary view-btn" data-id="${transaction.id}">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </td>
+              `;
 
-              <div class="mb-3 pb-3 border-bottom">
-                <h6>Location Information</h6>
-                <p class="mb-0"><strong>Concession Stand:</strong> ${stand.name}</p>
-                <p class="mb-0"><strong>Location:</strong> ${stand.location || 'N/A'}</p>
-              </div>
+              return row;
+            });
+          })
+        ).then(rows => {
+          rows.forEach(row => {
+            tableBody.appendChild(row);
+          });
 
-              ${transaction.notes
-                ? `<div class="mb-3">
-                     <h6>Notes</h6>
-                     <p class="mb-0">${transaction.notes}</p>
-                   </div>`
-                : ''}
-            `;
-
-            // Show delete button to admins
-            document.getElementById('delete-transaction-btn').classList.remove('d-none');
-            document.getElementById('delete-transaction-btn').setAttribute('data-id', transaction.id);
-
-            // Show the modal
-            const modal = new bootstrap.Modal(document.getElementById('transactionDetailsModal'));
-            modal.show();
-
-            // Add event listener to delete button
-            document.getElementById('delete-transaction-btn').addEventListener('click', function() {
-              deleteTransaction(this.getAttribute('data-id'));
+          // Add event listeners to view buttons
+          document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+              viewTransaction(this.getAttribute('data-id'));
             });
           });
-        })
-        .catch(error => {
-          console.error('Error loading transaction details:', error);
-          alert('Error loading transaction details');
         });
-    }
+      })
+      .catch(error => {
+        console.error('Error loading transactions:', error);
 
-    function deleteTransaction(id) {
-      if (confirm('Are you sure you want to delete this transaction? This action cannot be undone.')) {
-        fetch(`/api/transactions/${id}`, {
-          method: 'DELETE'
-        })
-        .then(response => {
-          if (response.ok) {
-            // Close modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('transactionDetailsModal'));
-            modal.hide();
+        // Show error message
+        const tableBody = document.getElementById('transactions-table').querySelector('tbody');
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="9" class="text-center py-4 text-danger">
+              <i class="fas fa-exclamation-circle fa-2x mb-3"></i>
+              <p>Error loading transactions. Please try again.</p>
+            </td>
+          </tr>
+        `;
+      });
+  }
 
-            // Reload transactions
-            loadTransactions();
-          } else {
-            throw new Error('Error deleting transaction');
-          }
-        })
-        .catch(error => {
-          console.error('Error:', error);
-          alert('Error deleting transaction');
-        });
-      }
-    }
+  function updateStats(transactions) {
+    // Calculate stats from transactions
+    let totalSales = 0;
+    let cashSales = 0;
+    let cardSales = 0;
+    let cashCount = 0;
+    let cardCount = 0;
 
-    function exportToCSV() {
-      // Get filter values
-      const standId = document.getElementById('stand-filter').value;
-      const paymentMethod = document.getElementById('payment-filter').value;
-      const dateFrom = document.getElementById('date-from').value;
-      const dateTo = document.getElementById('date-to').value;
+    // Track quantities sold per menu item
+    let itemSales = {};
 
-      // Build query string for all transactions (no pagination)
-      let queryParams = new URLSearchParams();
+    transactions.forEach(transaction => {
+      totalSales += transaction.total_amount;
 
-      if (standId) {
-        queryParams.append('stand_id', standId);
-      }
-
-      if (paymentMethod) {
-        queryParams.append('payment_method', paymentMethod);
+      if (transaction.payment_method === 'CASH') {
+        cashSales += transaction.total_amount;
+        cashCount++;
+      } else {
+        cardSales += transaction.total_amount;
+        cardCount++;
       }
 
-      if (dateFrom) {
-        queryParams.append('date_from', `${dateFrom}T00:00:00`);
+      // Track item sales
+      if (!itemSales[transaction.menu_item_id]) {
+        itemSales[transaction.menu_item_id] = {
+          id: transaction.menu_item_id,
+          quantity: 0,
+          name: null
+        };
       }
 
-      if (dateTo) {
-        queryParams.append('date_to', `${dateTo}T23:59:59`);
-      }
+      itemSales[transaction.menu_item_id].quantity += transaction.quantity;
+    });
 
-      // Fetch all transactions with filters
-      fetch(`/api/transactions/?${queryParams.toString()}`)
+    // Update stats display
+    document.getElementById('total-sales').textContent = `$${totalSales.toFixed(2)}`;
+    document.getElementById('transactions-count').textContent = `${transactions.length} transactions`;
+
+    document.getElementById('cash-sales').textContent = `$${cashSales.toFixed(2)}`;
+    document.getElementById('cash-count').textContent = `${cashCount} transactions`;
+
+    document.getElementById('card-sales').textContent = `$${cardSales.toFixed(2)}`;
+    document.getElementById('card-count').textContent = `${cardCount} transactions`;
+
+    // Find top selling item
+    if (Object.keys(itemSales).length > 0) {
+      let topItem = Object.values(itemSales).reduce((max, item) =>
+        max.quantity > item.quantity ? max : item
+      );
+
+      // Get the menu item name
+      fetch(`/api/menu/${topItem.id}`)
         .then(response => response.json())
-        .then(async transactions => {
-          if (transactions.length === 0) {
-            alert('No transactions to export');
-            return;
-          }
-
-          // Create CSV header
-          let csv = 'ID,Date,Time,Stand,Item,Quantity,Unit Price,Total,Payment Method,Square Transaction ID,Notes\n';
-
-          // Process each transaction
-          for (const transaction of transactions) {
-            // Get stand and menu item details
-            const [stand, menuItem] = await Promise.all([
-              fetch(`/api/stands/${transaction.stand_id}`).then(res => res.json()),
-              fetch(`/api/menu/${transaction.menu_item_id}`).then(res => res.json())
-            ]);
-
-            // Format date
-            const date = new Date(transaction.created_at);
-            const formattedDate = date.toLocaleDateString();
-            const formattedTime = date.toLocaleTimeString();
-
-            // Format payment method
-            const paymentMethod = transaction.payment_method === 'CASH' ? 'Cash' : 'Credit Card';
-
-            // Create CSV row
-            csv += `${transaction.id},${formattedDate},${formattedTime},"${stand.name}","${menuItem.name}",${transaction.quantity},${transaction.unit_price.toFixed(2)},${transaction.total_amount.toFixed(2)},"${paymentMethod}","${transaction.square_transaction_id || ''}","${transaction.notes || ''}"\n`;
-          }
-
-          // Create download link
-          const blob = new Blob([csv], { type: 'text/csv' });
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.setAttribute('hidden', '');
-          a.setAttribute('href', url);
-          a.setAttribute('download', 'transactions.csv');
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
+        .then(menuItem => {
+          document.getElementById('top-item').textContent = menuItem.name;
+          document.getElementById('top-item-qty').textContent = `${topItem.quantity} sold`;
         })
         .catch(error => {
-          console.error('Error exporting transactions:', error);
-          alert('Error exporting transactions');
+          console.error('Error fetching top item details:', error);
         });
+    } else {
+      document.getElementById('top-item').textContent = '—';
+      document.getElementById('top-item-qty').textContent = '0 sold';
     }
-  });
+  }
+
+  function updatePagination(totalCount) {
+    totalTransactions = totalCount;
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    // Update results count text
+    const startItem = Math.min((currentPage - 1) * pageSize + 1, totalCount);
+    const endItem = Math.min(currentPage * pageSize, totalCount);
+
+    if (totalCount > 0) {
+      document.getElementById('results-count').textContent =
+        `Showing ${startItem}-${endItem} of ${totalCount} transactions`;
+    } else {
+      document.getElementById('results-count').textContent = 'No transactions found';
+    }
+
+    // Update pagination controls
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = '';
+
+    if (totalPages <= 1) {
+      return;
+    }
+
+    // Previous button
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+    prevLi.innerHTML = `
+      <a class="page-link" href="#" aria-label="Previous" ${currentPage > 1 ? 'data-page="' + (currentPage - 1) + '"' : ''}>
+        <span aria-hidden="true">&laquo;</span>
+      </a>
+    `;
+    pagination.appendChild(prevLi);
+
+    // Page numbers
+    const maxPages = 5; // Show max 5 page numbers
+    const startPage = Math.max(1, currentPage - Math.floor(maxPages / 2));
+    const endPage = Math.min(totalPages, startPage + maxPages - 1);
+
+    for (let i = startPage; i <= endPage; i++) {
+      const pageLi = document.createElement('li');
+      pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
+      pageLi.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+      pagination.appendChild(pageLi);
+    }
+
+    // Next button
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+    nextLi.innerHTML = `
+      <a class="page-link" href="#" aria-label="Next" ${currentPage < totalPages ? 'data-page="' + (currentPage + 1) + '"' : ''}>
+        <span aria-hidden="true">&raquo;</span>
+      </a>
+    `;
+    pagination.appendChild(nextLi);
+
+    // Add event listeners to pagination links
+    document.querySelectorAll('.page-link[data-page]').forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        currentPage = parseInt(this.getAttribute('data-page'));
+        loadTransactions();
+      });
+    });
+  }
+
+  function viewTransaction(id) {
+    fetch(`/api/transactions/${id}`)
+      .then(response => response.json())
+      .then(transaction => {
+        // Get related data
+        Promise.all([
+          fetch(`/api/stands/${transaction.stand_id}`).then(res => res.json()),
+          fetch(`/api/menu/${transaction.menu_item_id}`).then(res => res.json())
+        ]).then(([stand, menuItem]) => {
+          // Format date
+          const date = new Date(transaction.created_at);
+          const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+
+          // Populate details
+          document.getElementById('transaction-details-content').innerHTML = `
+            <div class="mb-3 pb-3 border-bottom">
+              <h6 class="text-muted">Transaction #${transaction.id}</h6>
+              <p class="mb-0"><strong>Date/Time:</strong> ${formattedDate}</p>
+            </div>
+
+            <div class="mb-3 pb-3 border-bottom">
+              <h6>Item Details</h6>
+              <p class="mb-0"><strong>Item:</strong> ${menuItem.name}</p>
+              <p class="mb-0"><strong>Quantity:</strong> ${transaction.quantity}</p>
+              <p class="mb-0"><strong>Unit Price:</strong> $${transaction.unit_price.toFixed(2)}</p>
+              <p class="mb-0"><strong>Total Amount:</strong> $${transaction.total_amount.toFixed(2)}</p>
+            </div>
+
+            <div class="mb-3 pb-3 border-bottom">
+              <h6>Payment Information</h6>
+              <p class="mb-0">
+                <strong>Method:</strong>
+                ${transaction.payment_method === 'CASH'
+                  ? '<span class="badge bg-success">Cash</span>'
+                  : '<span class="badge bg-info">Credit Card</span>'}
+              </p>
+              ${transaction.square_transaction_id
+                ? `<p class="mb-0"><strong>Square Transaction ID:</strong> ${transaction.square_transaction_id}</p>`
+                : ''}
+            </div>
+
+            <div class="mb-3 pb-3 border-bottom">
+              <h6>Location Information</h6>
+              <p class="mb-0"><strong>Concession Stand:</strong> ${stand.name}</p>
+              <p class="mb-0"><strong>Location:</strong> ${stand.location || 'N/A'}</p>
+            </div>
+
+            ${transaction.notes
+              ? `<div class="mb-3">
+                   <h6>Notes</h6>
+                   <p class="mb-0">${transaction.notes}</p>
+                 </div>`
+              : ''}
+          `;
+
+          // Show delete button to admins
+          document.getElementById('delete-transaction-btn').classList.remove('d-none');
+          document.getElementById('delete-transaction-btn').setAttribute('data-id', transaction.id);
+
+          // Show the modal
+          const modal = new bootstrap.Modal(document.getElementById('transactionDetailsModal'));
+          modal.show();
+
+          // Add event listener to delete button
+          document.getElementById('delete-transaction-btn').addEventListener('click', function() {
+            deleteTransaction(this.getAttribute('data-id'));
+          });
+        });
+      })
+      .catch(error => {
+        console.error('Error loading transaction details:', error);
+        alert('Error loading transaction details');
+      });
+  }
+
+  function deleteTransaction(id) {
+    if (confirm('Are you sure you want to delete this transaction? This action cannot be undone.')) {
+      fetch(`/api/transactions/${id}`, {
+        method: 'DELETE'
+      })
+      .then(response => {
+        if (response.ok) {
+          // Close modal
+          const modal = bootstrap.Modal.getInstance(document.getElementById('transactionDetailsModal'));
+          modal.hide();
+
+          // Reload transactions
+          loadTransactions();
+        } else {
+          throw new Error('Error deleting transaction');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting transaction');
+      });
+    }
+  }
+
+  function exportToCSV() {
+    // Get filter values
+    const standId = document.getElementById('stand-filter').value;
+    const paymentMethod = document.getElementById('payment-filter').value;
+    const dateFrom = document.getElementById('date-from').value;
+    const dateTo = document.getElementById('date-to').value;
+
+    // Build query string for all transactions (no pagination)
+    let queryParams = new URLSearchParams();
+
+    if (standId) {
+      queryParams.append('stand_id', standId);
+    }
+
+    if (paymentMethod) {
+      queryParams.append('payment_method', paymentMethod);
+    }
+
+    if (dateFrom) {
+      queryParams.append('date_from', `${dateFrom}T00:00:00`);
+    }
+
+    if (dateTo) {
+      queryParams.append('date_to', `${dateTo}T23:59:59`);
+    }
+
+    // Fetch all transactions with filters
+    fetch(`/api/transactions/?${queryParams.toString()}`)
+      .then(response => response.json())
+      .then(async transactions => {
+        if (transactions.length === 0) {
+          alert('No transactions to export');
+          return;
+        }
+
+        // Create CSV header
+        let csv = 'ID,Date,Time,Stand,Item,Quantity,Unit Price,Total,Payment Method,Square Transaction ID,Notes\n';
+
+        // Process each transaction
+        for (const transaction of transactions) {
+          // Get stand and menu item details
+          const [stand, menuItem] = await Promise.all([
+            fetch(`/api/stands/${transaction.stand_id}`).then(res => res.json()),
+            fetch(`/api/menu/${transaction.menu_item_id}`).then(res => res.json())
+          ]);
+
+          // Format date
+          const date = new Date(transaction.created_at);
+          const formattedDate = date.toLocaleDateString();
+          const formattedTime = date.toLocaleTimeString();
+
+          // Format payment method
+          const paymentMethod = transaction.payment_method === 'CASH' ? 'Cash' : 'Credit Card';
+
+          // Create CSV row
+          csv += `${transaction.id},${formattedDate},${formattedTime},"${stand.name}","${menuItem.name}",${transaction.quantity},${transaction.unit_price.toFixed(2)},${transaction.total_amount.toFixed(2)},"${paymentMethod}","${transaction.square_transaction_id || ''}","${transaction.notes || ''}"\n`;
+        }
+
+        // Create download link
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.setAttribute('hidden', '');
+        a.setAttribute('href', url);
+        a.setAttribute('download', 'transactions.csv');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      })
+      .catch(error => {
+        console.error('Error exporting transactions:', error);
+        alert('Error exporting transactions');
+      });
+  }
 </script>
 {% endblock %}
