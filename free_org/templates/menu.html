@@ -995,14 +995,24 @@ endblock %} {% block content %}
             document.getElementById('edit-image_path').value = item.image_path || '';
 
             // Load inventory items for this stand
-            loadInventoryItems(item.stand_id, 'edit-inventory_item_id');
+            loadInventoryItemsForSelect(item.stand_id, 'edit-inventory_item_select');
 
-            // Set the inventory item selection after a short delay to allow the dropdown to populate
-            setTimeout(() => {
-              if (item.inventory_item_id) {
-                document.getElementById('edit-inventory_item_id').value = item.inventory_item_id;
-              }
-            }, 500);
+            // Clear existing linked items
+            clearInventoryItems(true);
+
+            // Fetch the menu item's inventory items
+            fetch(`/api/menu/${item.id}/inventory_items`)
+              .then(response => response.json())
+              .then(inventoryItems => {
+                // Add each inventory item to the edit form's linked items list
+                editLinkedInventoryItems = [];
+                inventoryItems.forEach(invItem => {
+                  addInventoryItem(invItem.id, invItem.name, true);
+                });
+              })
+              .catch(error => {
+                console.error('Error loading linked inventory items:', error);
+              });
 
             // Show modal
             const modal = new bootstrap.Modal(document.getElementById('editMenuItemModal'));
