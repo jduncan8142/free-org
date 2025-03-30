@@ -436,6 +436,10 @@ endblock %} {% block content %}
 </div>
 
 <script>
+  // Global variables to store linked inventory items
+  let linkedInventoryItems = [];
+  let editLinkedInventoryItems = [];
+
   document.addEventListener('DOMContentLoaded', function() {
     // Load stands for the filter and form dropdowns
     loadStands();
@@ -448,12 +452,28 @@ endblock %} {% block content %}
 
     // Stand selection change handler for add form
     document.getElementById('stand_id').addEventListener('change', function() {
-      loadInventoryItems(this.value, 'inventory_item_id');
+      loadInventoryItemsForSelect(this.value, 'inventory_item_select');
     });
 
     // Stand selection change handler for edit form
     document.getElementById('edit-stand_id').addEventListener('change', function() {
-      loadInventoryItems(this.value, 'edit-inventory_item_id');
+      loadInventoryItemsForSelect(this.value, 'edit-inventory_item_select');
+    });
+
+    // Add inventory item button for add form
+    document.getElementById('add-inventory-item-btn').addEventListener('click', function() {
+      const select = document.getElementById('inventory_item_select');
+      if (select.value) {
+        addInventoryItem(select.value, select.options[select.selectedIndex].text, false);
+      }
+    });
+
+    // Add inventory item button for edit form
+    document.getElementById('edit-add-inventory-item-btn').addEventListener('click', function() {
+      const select = document.getElementById('edit-inventory_item_select');
+      if (select.value) {
+        addInventoryItem(select.value, select.options[select.selectedIndex].text, true);
+      }
     });
 
     // Add menu item form submission
