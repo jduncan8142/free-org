@@ -8,6 +8,10 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from datetime import datetime
 from sqlmodel import Session, select
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add the parent directory to path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
