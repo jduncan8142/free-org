@@ -71,6 +71,7 @@ async def create_transaction(
     quantity: int = Body(...),
     payment_method: PaymentMethod = Body(...),
     square_transaction_id: Optional[str] = Body(None),
+    window_id: Optional[int] = Body(None),
     session: Session = Depends(get_session),
 ):
     """
@@ -80,6 +81,7 @@ async def create_transaction(
     - **quantity**: Quantity sold
     - **payment_method**: Method of payment (cash or card)
     - **square_transaction_id**: For card payments via Square, the transaction ID
+    - **window_id**: ID of the window where the transaction occurred (optional)
     """
     # Validate menu item exists
     menu_item = session.get(MenuItem, menu_item_id)
@@ -98,12 +100,31 @@ async def create_transaction(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Square transaction ID required for card payments"
         )
 
+    # Validate window belongs to the same stand as the menu item if provided
+    if window_id is not None:
+        from free_org.db.models.window import Window
+
+        window = session.get(Window, window_id)
+        if not window:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Window with ID {window_id} not found")
+
+        if window.stand_id != menu_item.stand_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Window with ID {window_id} does not belong to the same stand as the menu item",
+            )
+
+        # Check if window is active
+        if not window.is_active:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Window '{window.name}' is not active")
+
     # Create transaction
     transaction = Transaction.create_from_menu_item(
         menu_item=menu_item,
         quantity=quantity,
         payment_method=payment_method,
         square_transaction_id=square_transaction_id,
+        window_id=window_id,
     )
 
     # Save transaction
