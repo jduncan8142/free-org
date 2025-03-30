@@ -553,6 +553,9 @@ endblock %} {% block content %}
       // Add inventory item IDs from our linked items list
       const inventoryItems = { inventory_item_ids: editLinkedInventoryItems };
 
+      // Add inventory item IDs
+      data.inventory_item_ids = editLinkedInventoryItems;
+
       // Submit to API
       fetch(`/api/menu/${menuItemId}`, {
         method: 'PUT',
