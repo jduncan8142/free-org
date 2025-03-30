@@ -4,6 +4,8 @@ from datetime import datetime
 
 if TYPE_CHECKING:
     from free_org.db.models.window import Window
+    from free_org.db.models.inventory import InventoryItem
+    from free_org.db.models.menu import MenuItem
 
     windows: List["Window"] = Relationship(back_populates="stand")
 
