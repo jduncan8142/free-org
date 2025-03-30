@@ -601,7 +601,8 @@ endblock %} {% block extra_css %}
             menu_item_id: item.id,
             quantity: item.quantity,
             payment_method: paymentMethod,
-            square_transaction_id: paymentMethod === 'card' ? 'demo-' + Date.now() : null
+            square_transaction_id: paymentMethod === 'card' ? 'demo-' + Date.now() : null,
+            stand_id: selectedStand.id
           })
         }).then(response => {
           if (!response.ok) {
