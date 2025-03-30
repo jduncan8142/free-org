@@ -1,9 +1,13 @@
-from typing import Optional, List
+from typing import Optional, List, ForwardRef
 from sqlmodel import Field, SQLModel, Relationship
 from datetime import datetime
 
 # Import the join table
 from free_org.db.models.menu_inventory import MenuItemInventory
+
+# Forward references to avoid circular imports
+ConcessionStand = ForwardRef("ConcessionStand")
+Transaction = ForwardRef("Transaction")
 
 
 class MenuItem(SQLModel, table=True):
