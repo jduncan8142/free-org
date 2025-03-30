@@ -91,6 +91,87 @@
   </div>
 </div>
 
+<!-- Edit Inventory Item Modal -->
+<div class="modal fade" id="editItemModal" tabindex="-1" aria-labelledby="editItemModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editItemModalLabel">Edit Inventory Item</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="edit-item-form">
+          <input type="hidden" id="edit-item-id">
+          
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="edit-name" class="form-label">Item Name</label>
+              <input type="text" class="form-control" id="edit-name" required>
+            </div>
+            <div class="col-md-6">
+              <label for="edit-stand" class="form-label">Concession Stand</label>
+              <select class="form-select" id="edit-stand">
+                <option value="">-- Not Assigned --</option>
+                <!-- Will be populated via API -->
+              </select>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="edit-description" class="form-label">Description</label>
+            <textarea class="form-control" id="edit-description" rows="2"></textarea>
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-md-4">
+              <label for="edit-type" class="form-label">Item Type</label>
+              <select class="form-select" id="edit-type" required>
+                <option value="food">Food</option>
+                <option value="drink">Drink</option>
+                <option value="supply">Supply</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label for="edit-unit" class="form-label">Unit</label>
+              <select class="form-select" id="edit-unit" required>
+                <option value="each">Each</option>
+                <option value="box">Box</option>
+                <option value="case">Case</option>
+                <option value="pound">Pound</option>
+                <option value="ounce">Ounce</option>
+                <option value="gallon">Gallon</option>
+                <option value="liter">Liter</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label for="edit-unit-cost" class="form-label">Unit Cost ($)</label>
+              <input type="number" class="form-control" id="edit-unit-cost" min="0" step="0.01" required>
+            </div>
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="edit-quantity" class="form-label">Quantity</label>
+              <input type="number" class="form-control" id="edit-quantity" min="0" required>
+            </div>
+            <div class="col-md-6">
+              <label for="edit-minimum-threshold" class="form-label">Minimum Threshold</label>
+              <input type="number" class="form-control" id="edit-minimum-threshold" min="0" required>
+              <div class="form-text">Items will be marked as low stock when quantity falls below this threshold</div>
+            </div>
+          </div>
+          
+          <div class="alert alert-danger d-none" id="edit-error-message"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="save-edit-btn">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     // Load stands for the filter dropdown
@@ -104,6 +185,15 @@
           option.textContent = stand.name;
           standFilter.appendChild(option);
         });
+        
+        // Also populate the edit modal stand dropdown
+        const editStandSelect = document.getElementById('edit-stand');
+        stands.forEach(stand => {
+          const option = document.createElement('option');
+          option.value = stand.id;
+          option.textContent = stand.name;
+          editStandSelect.appendChild(option);
+        });
       })
       .catch(error => console.error('Error loading stands:', error));
     
@@ -114,6 +204,9 @@
     document.getElementById('stand-filter').addEventListener('change', loadInventoryItems);
     document.getElementById('type-filter').addEventListener('change', loadInventoryItems);
     document.getElementById('available-filter').addEventListener('change', loadInventoryItems);
+    
+    // Set up edit modal save button
+    document.getElementById('save-edit-btn').addEventListener('click', saveInventoryItemChanges);
   });
   
   function loadInventoryItems() {
@@ -273,8 +366,7 @@
     document.querySelectorAll('.edit-btn').forEach(btn => {
       btn.addEventListener('click', function() {
         const itemId = this.getAttribute('data-item-id');
-        // In a real implementation, redirect to edit page
-        alert(`Edit item ${itemId} - Not yet implemented`);
+        loadInventoryItemForEdit(itemId);
       });
     });
     
@@ -301,6 +393,132 @@
         }
       });
     });
+  }
+  
+  function loadInventoryItemForEdit(itemId) {
+    // Show loading state
+    const saveButton = document.getElementById('save-edit-btn');
+    saveButton.disabled = true;
+    saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...';
+    
+    // Hide previous error messages
+    document.getElementById('edit-error-message').classList.add('d-none');
+    
+    // Fetch item details
+    fetch(`/api/inventory/${itemId}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to load item details');
+        }
+        return response.json();
+      })
+      .then(item => {
+        // Populate form fields
+        document.getElementById('edit-item-id').value = item.id;
+        document.getElementById('edit-name').value = item.name;
+        document.getElementById('edit-description').value = item.description || '';
+        document.getElementById('edit-type').value = item.item_type;
+        document.getElementById('edit-unit').value = item.unit;
+        document.getElementById('edit-quantity').value = item.quantity;
+        document.getElementById('edit-minimum-threshold').value = item.minimum_threshold;
+        document.getElementById('edit-unit-cost').value = item.unit_cost;
+        document.getElementById('edit-stand').value = item.stand_id || '';
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('editItemModal'));
+        modal.show();
+        
+        // Re-enable save button
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save Changes';
+      })
+      .catch(error => {
+        console.error('Error loading item details:', error);
+        alert('Error loading item details. Please try again.');
+        
+        // Re-enable save button
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save Changes';
+      });
+  }
+  
+  function saveInventoryItemChanges() {
+    // Get form values
+    const itemId = document.getElementById('edit-item-id').value;
+    const name = document.getElementById('edit-name').value.trim();
+    const description = document.getElementById('edit-description').value.trim();
+    const itemType = document.getElementById('edit-type').value;
+    const unit = document.getElementById('edit-unit').value;
+    const quantity = parseInt(document.getElementById('edit-quantity').value);
+    const minimumThreshold = parseInt(document.getElementById('edit-minimum-threshold').value);
+    const unitCost = parseFloat(document.getElementById('edit-unit-cost').value);
+    const standId = document.getElementById('edit-stand').value || null;
+    
+    // Validate required fields
+    if (!name) {
+      showEditError('Item name is required');
+      return;
+    }
+    
+    // Prepare data for API
+    const itemData = {
+      name,
+      description: description || null,
+      item_type: itemType,
+      unit,
+      quantity,
+      minimum_threshold: minimumThreshold,
+      unit_cost: unitCost,
+      stand_id: standId ? parseInt(standId) : null
+    };
+    
+    // Show loading state
+    const saveButton = document.getElementById('save-edit-btn');
+    saveButton.disabled = true;
+    saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+    
+    // Send update to API
+    fetch(`/api/inventory/${itemId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(itemData)
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(data => {
+          throw new Error(data.detail || 'Failed to update inventory item');
+        });
+      }
+      return response.json();
+    })
+    .then(updatedItem => {
+      // Close modal
+      const modal = bootstrap.Modal.getInstance(document.getElementById('editItemModal'));
+      modal.hide();
+      
+      // Reload inventory items to show the update
+      loadInventoryItems();
+      
+      // Re-enable save button
+      saveButton.disabled = false;
+      saveButton.textContent = 'Save Changes';
+    })
+    .catch(error => {
+      console.error('Error updating item:', error);
+      showEditError(error.message || 'Error updating inventory item. Please try again.');
+      
+      // Re-enable save button
+      saveButton.disabled = false;
+      saveButton.textContent = 'Save Changes';
+    });
+  }
+  
+  function showEditError(message) {
+    const errorElement = document.getElementById('edit-error-message');
+    errorElement.textContent = message;
+    errorElement.classList.remove('d-none');
   }
 </script>
 {% endblock %}
