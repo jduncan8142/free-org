@@ -67,11 +67,11 @@ def test_create_transaction(client, test_data):
     transaction_data = {
         "menu_item_id": test_data["menu_item"].id,
         "quantity": 3,
-        "payment_method": PaymentMethod.CASH,
+        "payment_method": "cash",  # Use string representation instead of enum
         "window_id": test_data["window"].id,
     }
-    # Use form data instead of JSON since the API endpoint uses individual Body parameters
-    response = client.post("/api/transactions/", data=transaction_data)
+    # Use JSON format which seems to work with other tests
+    response = client.post("/api/transactions/", json=transaction_data)
     assert response.status_code == status.HTTP_201_CREATED
     # Check status code only since we're having issues with the response format
     # The important thing is that the transaction was created successfully
