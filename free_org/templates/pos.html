@@ -456,12 +456,13 @@ endblock %} {% block extra_css %}
         resetMenuItems();
       }
     }
+
+    function loadMenuItems(standId) {
       // Verify both stand and window are selected
       if (!standId || !windowSelect.value) {
         resetMenuItems();
         return;
       }
-    function loadMenuItems(standId) {
       // Show loading indicator
       menuItemsContainer.innerHTML = `
         <div class="text-center py-5">
@@ -472,11 +473,6 @@ endblock %} {% block extra_css %}
         </div>
       `;
 
-      const windowId = windowSelect.value;
-      if (!windowId) {
-        showError('Please select a window.');
-        return;
-      }
       fetch(`/api/menu/?stand_id=${standId}&available_only=true`)
         .then(response => response.json())
         .then(data => {
