@@ -899,8 +899,36 @@ endblock %} {% block content %}
                 })
                 .catch(error => {
                   console.error('Error fetching inventory items:', error);
-                  inventoryCell.textContent = 'Error loading items';
+                    inventoryCell.textContent = 'Loading items...';
 
+                    // Troubleshoot and fix inventory items loading
+                    console.log(`Fetching inventory items for menu item ${item.id}`);
+                    fetch(`/api/menu/${item.id}/inventory_items`)
+                      .then(response => {
+                        console.log(`Inventory items response for item ${item.id}:`, response.status);
+                        if (!response.ok) {
+                          throw new Error(`Status: ${response.status}`);
+                        }
+                        return response.json();
+                      })
+                      .then(inventoryItems => {
+                        console.log(`Inventory items for menu item ${item.id}:`, inventoryItems);
+
+                        if (inventoryItems.length === 0) {
+                          inventoryCell.textContent = '—';
+                        } else {
+                          const itemNames = inventoryItems.map(inv => inv.name);
+                          inventoryCell.innerHTML = `
+                            <ul class="list-unstyled mb-0">
+                              ${itemNames.map(name => `<li><small>${name}</small></li>`).join('')}
+                            </ul>
+                          `;
+                        }
+                      })
+                      .catch(error => {
+                        console.error(`Error fetching inventory items for menu item ${item.id}:`, error);
+                        inventoryCell.textContent = 'Error loading items';
+                      });
                   // Add status cell with generic badge
                   const statusCell = document.createElement('td');
                   statusCell.innerHTML = item.is_available
