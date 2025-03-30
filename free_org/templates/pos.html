@@ -1,8 +1,5 @@
-{% extends "base.html" %}
-
-{% block title %}{{ title }} - Point of Sale{% endblock %}
-
-{% block extra_css %}
+{% extends "base.html" %} {% block title %}{{ title }} - Point of Sale{%
+endblock %} {% block extra_css %}
 <style>
   .menu-item {
     cursor: pointer;
@@ -67,9 +64,7 @@
     color: #6c757d;
   }
 </style>
-{% endblock %}
-
-{% block content %}
+{% endblock %} {% block content %}
 <h1>Point of Sale</h1>
 
 <div class="row mb-4">
@@ -77,10 +72,18 @@
     <!-- Stand Selection -->
     <div class="card mb-4">
       <div class="card-header bg-primary text-white">
-        <h5 class="card-title mb-0"><i class="fas fa-store me-2"></i>Select Concession Stand</h5>
+        <h5 class="card-title mb-0">
+          <i class="fas fa-store me-2"></i>Select Concession Stand
+        </h5>
       </div>
       <div class="card-body">
-        <select id="standSelect" class="form-select">
+        <label for="standSelect" class="form-label"
+          >Choose a concession stand</label
+        >
+        <select
+          id="standSelect"
+          class="form-select"
+          aria-label="Select concession stand">
           <option value="">-- Select Stand --</option>
         </select>
       </div>
@@ -89,7 +92,9 @@
     <!-- Menu Items Grid -->
     <div class="card">
       <div class="card-header bg-primary text-white">
-        <h5 class="card-title mb-0"><i class="fas fa-utensils me-2"></i>Menu Items</h5>
+        <h5 class="card-title mb-0">
+          <i class="fas fa-utensils me-2"></i>Menu Items
+        </h5>
       </div>
       <div class="card-body">
         <div id="menuItems" class="pb-3">
@@ -107,7 +112,9 @@
     <!-- Shopping Cart -->
     <div class="card mb-4">
       <div class="card-header bg-primary text-white">
-        <h5 class="card-title mb-0"><i class="fas fa-shopping-cart me-2"></i>Cart</h5>
+        <h5 class="card-title mb-0">
+          <i class="fas fa-shopping-cart me-2"></i>Cart
+        </h5>
       </div>
       <div class="card-body">
         <div id="cartItems">
@@ -130,7 +137,9 @@
     <!-- Payment Processing -->
     <div class="card" id="paymentCard" style="display: none;">
       <div class="card-header bg-success text-white">
-        <h5 class="card-title mb-0"><i class="fas fa-money-bill-wave me-2"></i>Payment</h5>
+        <h5 class="card-title mb-0">
+          <i class="fas fa-money-bill-wave me-2"></i>Payment
+        </h5>
       </div>
       <div class="card-body">
         <div class="mb-3">
@@ -143,8 +152,15 @@
 
         <div id="cashPaymentSection">
           <div class="mb-3">
-            <label for="amountReceived" class="form-label">Amount Received ($)</label>
-            <input type="number" class="form-control" id="amountReceived" min="0" step="0.01">
+            <label for="amountReceived" class="form-label"
+              >Amount Received ($)</label
+            >
+            <input
+              type="number"
+              class="form-control"
+              id="amountReceived"
+              min="0"
+              step="0.01" />
           </div>
 
           <div class="payment-info">
@@ -162,23 +178,40 @@
         <div id="cardPaymentSection" style="display: none;">
           <div class="mb-3">
             <label for="cardNumber" class="form-label">Card Number</label>
-            <input type="text" class="form-control" id="cardNumber" placeholder="Card Number">
+            <input
+              type="text"
+              class="form-control"
+              id="cardNumber"
+              placeholder="Card Number" />
           </div>
           <div class="row">
             <div class="col">
               <label for="expiryDate" class="form-label">Expiry Date</label>
-              <input type="text" class="form-control" id="expiryDate" placeholder="MM/YY">
+              <input
+                type="text"
+                class="form-control"
+                id="expiryDate"
+                placeholder="MM/YY" />
             </div>
             <div class="col">
               <label for="cvv" class="form-label">CVV</label>
-              <input type="text" class="form-control" id="cvv" placeholder="CVV">
+              <input
+                type="text"
+                class="form-control"
+                id="cvv"
+                placeholder="CVV" />
             </div>
           </div>
-          <small class="text-muted mt-2 d-block">Note: This is for demonstration only. No actual payments are processed.</small>
+          <small class="text-muted mt-2 d-block"
+            >Note: This is for demonstration only. No actual payments are
+            processed.</small
+          >
         </div>
 
         <div class="mt-4">
-          <button id="processPayment" class="btn btn-success w-100">Process Payment</button>
+          <button id="processPayment" class="btn btn-success w-100">
+            Process Payment
+          </button>
         </div>
       </div>
     </div>
@@ -197,12 +230,20 @@
 </div>
 
 <!-- Transaction Success Modal -->
-<div class="modal fade" id="transactionSuccessModal" tabindex="-1" aria-hidden="true">
+<div
+  class="modal fade"
+  id="transactionSuccessModal"
+  tabindex="-1"
+  aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header bg-success text-white">
         <h5 class="modal-title">Transaction Complete</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <div class="text-center mb-4">
@@ -212,14 +253,26 @@
 
         <div id="transactionDetails">
           <p><strong>Total:</strong> <span id="modalTotal"></span></p>
-          <p id="modalChangeRow"><strong>Change:</strong> <span id="modalChange"></span></p>
-          <p><strong>Payment Method:</strong> <span id="modalPaymentMethod"></span></p>
-          <p><strong>Transaction ID:</strong> <span id="modalTransactionId"></span></p>
+          <p id="modalChangeRow">
+            <strong>Change:</strong> <span id="modalChange"></span>
+          </p>
+          <p>
+            <strong>Payment Method:</strong>
+            <span id="modalPaymentMethod"></span>
+          </p>
+          <p>
+            <strong>Transaction ID:</strong>
+            <span id="modalTransactionId"></span>
+          </p>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-primary" id="newSaleBtn">New Sale</button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="newSaleBtn">
+          New Sale
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
       </div>
     </div>
   </div>
@@ -231,20 +284,24 @@
     <div class="modal-content">
       <div class="modal-header bg-danger text-white">
         <h5 class="modal-title">Error</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <p id="errorMessage"></p>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
       </div>
     </div>
   </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
+{% endblock %} {% block extra_js %}
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     // Initialize variables
@@ -253,7 +310,7 @@
     let menuItems = [];
     let selectedStand = null;
     let totalAmount = 0;
-    
+
     // DOM elements
     const standSelect = document.getElementById('standSelect');
     const menuItemsContainer = document.getElementById('menuItems');
@@ -270,7 +327,7 @@
     const processPaymentBtn = document.getElementById('processPayment');
     const processingOverlay = document.getElementById('processingOverlay');
     const newSaleBtn = document.getElementById('newSaleBtn');
-    
+
     // Success modal elements
     const transactionSuccessModal = new bootstrap.Modal(document.getElementById('transactionSuccessModal'));
     const modalTotal = document.getElementById('modalTotal');
@@ -278,7 +335,7 @@
     const modalChangeRow = document.getElementById('modalChangeRow');
     const modalPaymentMethod = document.getElementById('modalPaymentMethod');
     const modalTransactionId = document.getElementById('modalTransactionId');
-    
+
     // Error modal elements
     const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
     const errorMessage = document.getElementById('errorMessage');
@@ -468,11 +525,11 @@
       // Update totals
       cartTotalEl.textContent = `$${totalAmount.toFixed(2)}`;
       totalDueEl.textContent = `$${totalAmount.toFixed(2)}`;
-      
+
       // Show summary and payment card
       cartSummary.style.display = 'block';
       paymentCard.style.display = 'block';
-      
+
       // Reset amount received and change due
       amountReceivedInput.value = '';
       changeDueEl.textContent = '$0.00';
@@ -481,7 +538,7 @@
 
     function togglePaymentSections() {
       const method = paymentMethodSelect.value;
-      
+
       if (method === 'cash') {
         cashPaymentSection.style.display = 'block';
         cardPaymentSection.style.display = 'none';
@@ -494,9 +551,9 @@
     function calculateChange() {
       const amountReceived = parseFloat(amountReceivedInput.value) || 0;
       const change = amountReceived - totalAmount;
-      
+
       changeDueEl.textContent = `$${Math.abs(change).toFixed(2)}`;
-      
+
       if (change < 0) {
         changeDueEl.classList.remove('positive-change');
         changeDueEl.classList.add('negative-change');
@@ -520,10 +577,10 @@
       }
 
       const paymentMethod = paymentMethodSelect.value;
-      
+
       if (paymentMethod === 'cash') {
         const amountReceived = parseFloat(amountReceivedInput.value) || 0;
-        
+
         if (amountReceived < totalAmount) {
           showError('Amount received is less than total due. Please enter a valid amount.');
           return;
@@ -558,17 +615,17 @@
       Promise.all(transactionPromises)
         .then(results => {
           processingOverlay.style.display = 'none';
-          
+
           // Show success modal
           const amountReceived = parseFloat(amountReceivedInput.value) || 0;
           const change = amountReceived - totalAmount;
-          
+
           modalTotal.textContent = `$${totalAmount.toFixed(2)}`;
           modalPaymentMethod = paymentMethod === 'cash' ? 'Cash' : 'Credit Card';
-          
+
           // Set transaction ID (use the first one for simplicity)
           modalTransactionId.textContent = results[0].id;
-          
+
           // Show/hide change row based on payment method
           if (paymentMethod === 'cash') {
             modalChangeRow.style.display = 'block';
@@ -576,7 +633,7 @@
           } else {
             modalChangeRow.style.display = 'none';
           }
-          
+
           transactionSuccessModal.show();
         })
         .catch(error => {
@@ -590,10 +647,10 @@
       // Clear cart and reset UI
       cart = [];
       updateCartUI();
-      
+
       // Hide modals
       transactionSuccessModal.hide();
-      
+
       // Reset payment fields
       amountReceivedInput.value = '';
       paymentMethodSelect.value = 'cash';
