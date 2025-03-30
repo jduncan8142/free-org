@@ -643,6 +643,12 @@ endblock %} {% block extra_css %}
         return;
       }
 
+      const windowId = windowSelect.value;
+      if (!windowId) {
+        showError('Please select a window.');
+        return;
+      }
+
       if (cart.length === 0) {
         showError('Your cart is empty. Please add items before processing payment.');
         return;
