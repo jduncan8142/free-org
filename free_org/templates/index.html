@@ -1,0 +1,234 @@
+{% extends "base.html" %} {% block title %}{{ title }} - Dashboard{% endblock %}
+{% block content %}
+<div class="row mb-4">
+  <div class="col-12">
+    <h1 class="display-4">Dashboard</h1>
+    <p class="lead">
+      Welcome to the Concession Stand Inventory Management System
+    </p>
+    <hr class="my-4" />
+  </div>
+</div>
+
+<!-- Quick Stats Cards - Responsive layout with smaller cards on mobile -->
+<div class="row mb-4">
+  <div class="col-md-3 col-sm-6 mb-3">
+    <div class="card bg-primary text-white h-100">
+      <div class="card-body">
+        <h5 class="card-title">
+          <i class="fas fa-store"></i> Concession Stands
+        </h5>
+        <h2 class="display-4 mt-3 mb-0" id="stands-count">-</h2>
+      </div>
+      <div
+        class="card-footer d-flex align-items-center justify-content-between">
+        <a class="small text-white stretched-link" href="/stands"
+          >View Details</a
+        >
+        <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6 mb-3">
+    <div class="card bg-success text-white h-100">
+      <div class="card-body">
+        <h5 class="card-title"><i class="fas fa-boxes"></i> Inventory Items</h5>
+        <h2 class="display-4 mt-3 mb-0" id="inventory-count">-</h2>
+      </div>
+      <div
+        class="card-footer d-flex align-items-center justify-content-between">
+        <a class="small text-white stretched-link" href="/inventory"
+          >View Details</a
+        >
+        <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6 mb-3">
+    <div class="card bg-warning text-white h-100">
+      <div class="card-body">
+        <h5 class="card-title"><i class="fas fa-utensils"></i> Menu Items</h5>
+        <h2 class="display-4 mt-3 mb-0" id="menu-count">-</h2>
+      </div>
+      <div
+        class="card-footer d-flex align-items-center justify-content-between">
+        <a class="small text-white stretched-link" href="/menu">View Details</a>
+        <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6 mb-3">
+    <div class="card bg-danger text-white h-100">
+      <div class="card-body">
+        <h5 class="card-title">
+          <i class="fas fa-exclamation-triangle"></i> Low Stock
+        </h5>
+        <h2 class="display-4 mt-3 mb-0" id="low-stock-count">-</h2>
+      </div>
+      <div
+        class="card-footer d-flex align-items-center justify-content-between">
+        <a
+          class="small text-white stretched-link"
+          href="/inventory?low_stock=true"
+          >View Details</a
+        >
+        <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main dashboard content with responsive design -->
+<div class="row">
+  <!-- Recent Transactions -->
+  <div class="col-lg-8 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-cash-register me-1"></i> Recent Transactions
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped" id="recent-transactions">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Stand</th>
+                <th>Quantity</th>
+                <th>Amount</th>
+                <th>Payment</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="6" class="text-center">Loading transactions...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card-footer small text-muted">
+        <a href="/transactions" class="btn btn-sm btn-primary"
+          >View All Transactions</a
+        >
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions and Alerts -->
+  <div class="col-lg-4 mb-4">
+    <!-- Quick Actions -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <i class="fas fa-bolt me-1"></i> Quick Actions
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="/transactions" class="btn btn-primary"
+            ><i class="fas fa-plus-circle"></i> New Transaction</a
+          >
+          <a href="/inventory/add" class="btn btn-success"
+            ><i class="fas fa-plus-circle"></i> Add Inventory</a
+          >
+          <a href="/transfers" class="btn btn-warning"
+            ><i class="fas fa-exchange-alt"></i> Transfer Inventory</a
+          >
+          <a href="/displays" class="btn btn-info"
+            ><i class="fas fa-tv"></i> Manage Displays</a
+          >
+        </div>
+      </div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="card">
+      <div class="card-header"><i class="fas fa-bell me-1"></i> Alerts</div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush" id="alerts-list">
+          <li class="list-group-item text-center">Loading alerts...</li>
+        </ul>
+      </div>
+      <div class="card-footer small text-muted">
+        Updated <span id="last-updated">-</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  // Load dashboard data when page loads
+  $(document).ready(function() {
+      loadDashboardData();
+
+      // Update every 60 seconds
+      setInterval(loadDashboardData, 60000);
+  });
+
+  function loadDashboardData() {
+      // Update the last updated timestamp
+      $('#last-updated').text(new Date().toLocaleTimeString());
+
+      // Fetch stand count
+      $.get('/api/stands', function(data) {
+          $('#stands-count').text(data.length);
+      });
+
+      // Fetch inventory stats
+      $.get('/api/inventory', function(data) {
+          $('#inventory-count').text(data.length);
+
+          // Count low stock items
+          let lowStockCount = 0;
+          data.forEach(item => {
+              if (item.quantity <= item.minimum_threshold) {
+                  lowStockCount++;
+              }
+          });
+          $('#low-stock-count').text(lowStockCount);
+
+          // Generate alerts for low stock
+          let alertsHtml = '';
+          if (lowStockCount > 0) {
+              alertsHtml += `<li class="list-group-item list-group-item-danger">
+                  <i class="fas fa-exclamation-circle"></i> ${lowStockCount} items are low on stock
+              </li>`;
+          } else {
+              alertsHtml += `<li class="list-group-item list-group-item-success">
+                  <i class="fas fa-check-circle"></i> All inventory items have sufficient stock
+              </li>`;
+          }
+
+          // Add more alerts as needed
+          $('#alerts-list').html(alertsHtml);
+      });
+
+      // Fetch menu items count
+      $.get('/api/menu', function(data) {
+          $('#menu-count').text(data.length);
+      });
+
+      // Fetch recent transactions
+      $.get('/api/transactions?limit=5', function(data) {
+          if (data.length === 0) {
+              $('#recent-transactions tbody').html('<tr><td colspan="6" class="text-center">No transactions found</td></tr>');
+              return;
+          }
+
+          let transactionsHtml = '';
+          data.forEach(transaction => {
+              const date = new Date(transaction.created_at);
+              transactionsHtml += `<tr>
+                  <td>${transaction.menu_item ? transaction.menu_item.name : 'Unknown'}</td>
+                  <td>${transaction.stand ? transaction.stand.name : 'Unknown'}</td>
+                  <td>${transaction.quantity}</td>
+                  <td>$${transaction.total_amount.toFixed(2)}</td>
+                  <td>${transaction.payment_method}</td>
+                  <td>${date.toLocaleTimeString()}</td>
+              </tr>`;
+          });
+
+          $('#recent-transactions tbody').html(transactionsHtml);
+      });
+  }
+</script>
+{% endblock %}
