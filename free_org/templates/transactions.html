@@ -1198,5 +1198,242 @@
           '<tr><td colspan="7" style="text-align: center; color: red;">Error loading transactions</td></tr>';
       });
   }
+  });
+  
+  function printReport() {
+    // Open a new window for printing
+    const printWindow = window.open('', '_blank');
+    
+    // Get filter values for report title
+    const standName = document.getElementById('stand-filter').selectedOptions[0].text;
+    const paymentMethod = document.getElementById('payment-filter').value;
+    const dateFrom = document.getElementById('date-from').value;
+    const dateTo = document.getElementById('date-to').value;
+    
+    // Get statistics
+    const totalSales = document.getElementById('total-sales').textContent;
+    const totalTransactions = document.getElementById('transactions-count').textContent;
+    const cashSales = document.getElementById('cash-sales').textContent;
+    const cashCount = document.getElementById('cash-count').textContent;
+    const cardSales = document.getElementById('card-sales').textContent;
+    const cardCount = document.getElementById('card-count').textContent;
+    
+    // Create report title based on filters
+    let reportTitle = 'Transaction Report';
+    let filterDescription = '';
+    
+    if (standName !== 'All Stands') {
+      filterDescription += `Stand: ${standName}, `;
+    }
+    
+    if (paymentMethod) {
+      const paymentText = paymentMethod === 'CASH' ? 'Cash' : 'Credit Card';
+      filterDescription += `Payment Method: ${paymentText}, `;
+    }
+    
+    if (dateFrom && dateTo) {
+      filterDescription += `Period: ${dateFrom} to ${dateTo}`;
+    } else if (dateFrom) {
+      filterDescription += `From: ${dateFrom}`;
+    } else if (dateTo) {
+      filterDescription += `To: ${dateTo}`;
+    }
+    
+    // Generate the report HTML
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Transaction Report</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+          }
+          h1, h2 {
+            color: #333;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 30px;
+          }
+          .filters {
+            font-style: italic;
+            margin-bottom: 20px;
+            color: #666;
+          }
+          .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+          }
+          .stat-card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            width: 30%;
+          }
+          .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+          }
+          .stat-label {
+            color: #666;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          th {
+            background-color: #f2f2f2;
+          }
+          tr:nth-child(even) {
+            background-color: #f9f9f9;
+          }
+          .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+          }
+          @media print {
+            .no-print {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>${reportTitle}</h1>
+          <div class="filters">${filterDescription}</div>
+          <p>Generated on ${new Date().toLocaleString()}</p>
+        </div>
+        
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-value">${totalSales}</div>
+            <div class="stat-label">${totalTransactions}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${cashSales}</div>
+            <div class="stat-label">${cashCount}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${cardSales}</div>
+            <div class="stat-label">${cardCount}</div>
+          </div>
+        </div>
+        
+        <h2>Transaction Details</h2>
+        <table id="transaction-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Date/Time</th>
+              <th>Item</th>
+              <th>Stand</th>
+              <th>Quantity</th>
+              <th>Total</th>
+              <th>Payment</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Will be populated with transaction data -->
+          </tbody>
+        </table>
+        
+        <div class="footer">
+          <p>Concession Stand Inventory Management System</p>
+        </div>
+        
+        <div class="no-print">
+          <button onclick="window.print()">Print Report</button>
+        </div>
+        
+        <script>
+          // Print automatically after loading data
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 1000);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    
+    // Get transactions for the report
+    let queryParams = new URLSearchParams();
+    
+    if (document.getElementById('stand-filter').value) {
+      queryParams.append('stand_id', document.getElementById('stand-filter').value);
+    }
+    
+    if (document.getElementById('payment-filter').value) {
+      queryParams.append('payment_method', document.getElementById('payment-filter').value);
+    }
+    
+    if (dateFrom) {
+      queryParams.append('date_from', `${dateFrom}T00:00:00`);
+    }
+    
+    if (dateTo) {
+      queryParams.append('date_to', `${dateTo}T23:59:59`);
+    }
+    
+    // Fetch transactions for the report
+    fetch(`/api/transactions/?${queryParams.toString()}`)
+      .then(response => response.json())
+      .then(async transactions => {
+        const tableBody = printWindow.document.querySelector('#transaction-table tbody');
+        
+        if (transactions.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No transactions found</td></tr>';
+          return;
+        }
+        
+        // Process each transaction
+        for (const transaction of transactions) {
+          try {
+            // Get stand and menu item details
+            const [stand, menuItem] = await Promise.all([
+              fetch(`/api/stands/${transaction.stand_id}`).then(res => res.json()),
+              fetch(`/api/menu/${transaction.menu_item_id}`).then(res => res.json())
+            ]);
+            
+            // Format date
+            const date = new Date(transaction.created_at);
+            const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+            
+            // Create table row
+            const row = printWindow.document.createElement('tr');
+            row.innerHTML = `
+              <td>${transaction.id}</td>
+              <td>${formattedDate}</td>
+              <td>${menuItem.name}</td>
+              <td>${stand.name}</td>
+              <td>${transaction.quantity}</td>
+              <td>$${transaction.total_amount.toFixed(2)}</td>
+              <td>${transaction.payment_method === 'CASH' ? 'Cash' : 'Credit Card'}</td>
+            `;
+            
+            tableBody.appendChild(row);
+          } catch (error) {
+            console.error('Error processing transaction for report:', error);
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Error loading transactions for report:', error);
+        printWindow.document.querySelector('#transaction-table tbody').innerHTML = 
+          '<tr><td colspan="7" style="text-align: center; color: red;">Error loading transactions</td></tr>';
+      });
+  }
 </script>
 {% endblock %}
