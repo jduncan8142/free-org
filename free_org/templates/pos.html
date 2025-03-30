@@ -325,6 +325,8 @@ endblock %} {% block extra_css %}
 
     // DOM elements
     const standSelect = document.getElementById('standSelect');
+    const windowSelect = document.getElementById('windowSelect');
+    const windowSelectionContainer = document.getElementById('windowSelectionContainer');
     const menuItemsContainer = document.getElementById('menuItems');
     const cartItemsContainer = document.getElementById('cartItems');
     const cartSummary = document.getElementById('cartSummary');
@@ -339,7 +341,7 @@ endblock %} {% block extra_css %}
     const processPaymentBtn = document.getElementById('processPayment');
     const processingOverlay = document.getElementById('processingOverlay');
     const newSaleBtn = document.getElementById('newSaleBtn');
-
+    windowSelect.addEventListener('change', handleWindowChange);
     // Success modal elements
     const transactionSuccessModal = new bootstrap.Modal(document.getElementById('transactionSuccessModal'));
     const modalTotal = document.getElementById('modalTotal');
@@ -388,20 +390,77 @@ endblock %} {% block extra_css %}
 
     function handleStandChange() {
       const standId = standSelect.value;
+
+      // Reset window selection and menu items
+      windowSelect.innerHTML = '<option value="">-- Select Window --</option>';
+      windowSelectionContainer.style.display = 'none';
+
       if (standId) {
         selectedStand = stands.find(s => s.id == standId);
-        loadMenuItems(standId);
+        loadWindows(standId);
       } else {
         selectedStand = null;
-        menuItemsContainer.innerHTML = `
-          <div class="text-center py-5 text-muted">
-            <i class="fas fa-store fa-3x mb-3"></i>
-            <p>Please select a stand to view available menu items</p>
-          </div>
-        `;
+        resetMenuItems();
       }
     }
 
+    function resetMenuItems() {
+      menuItemsContainer.innerHTML = `
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-store fa-3x mb-3"></i>
+          <p>Please select a stand and window to view available menu items</p>
+        </div>
+      `;
+    }
+
+    function loadWindows(standId) {
+      // Show loading indicator
+      windowSelectionContainer.style.display = 'block';
+      windowSelect.innerHTML = `
+        <option value="">-- Loading Windows... --</option>
+      `;
+
+      fetch(`/api/stands/${standId}/windows?active_only=true`)
+        .then(response => response.json())
+        .then(data => {
+          populateWindowDropdown(data);
+        })
+        .catch(error => {
+          console.error('Error loading windows:', error);
+          showError('Failed to load windows for this stand. Please try again.');
+          windowSelectionContainer.style.display = 'none';
+        });
+    }
+
+    function populateWindowDropdown(windows) {
+      windowSelect.innerHTML = '<option value="">-- Select Window --</option>';
+
+      if (windows.length === 0) {
+        windowSelect.innerHTML += '<option value="" disabled>No active windows available</option>';
+      } else {
+        windows.forEach(window => {
+          const option = document.createElement('option');
+          option.value = window.id;
+          option.textContent = window.name;
+          windowSelect.appendChild(option);
+        });
+      }
+    }
+
+    function handleWindowChange() {
+      const windowId = windowSelect.value;
+
+      if (windowId && selectedStand) {
+        loadMenuItems(selectedStand.id);
+      } else {
+        resetMenuItems();
+      }
+    }
+      // Verify both stand and window are selected
+      if (!standId || !windowSelect.value) {
+        resetMenuItems();
+        return;
+      }
     function loadMenuItems(standId) {
       // Show loading indicator
       menuItemsContainer.innerHTML = `
@@ -413,6 +472,11 @@ endblock %} {% block extra_css %}
         </div>
       `;
 
+      const windowId = windowSelect.value;
+      if (!windowId) {
+        showError('Please select a window.');
+        return;
+      }
       fetch(`/api/menu/?stand_id=${standId}&available_only=true`)
         .then(response => response.json())
         .then(data => {
@@ -614,7 +678,8 @@ endblock %} {% block extra_css %}
             quantity: item.quantity,
             payment_method: paymentMethod,
             square_transaction_id: paymentMethod === 'card' ? 'demo-' + Date.now() : null,
-            stand_id: selectedStand.id
+            stand_id: selectedStand.id,
+            window_id: parseInt(windowId)
           })
         }).then(response => {
           if (!response.ok) {
@@ -624,6 +689,7 @@ endblock %} {% block extra_css %}
         });
       });
 
+      // Keep the stand and window selection
       // Wait for all transactions to complete
       Promise.all(transactionPromises)
         .then(results => {
