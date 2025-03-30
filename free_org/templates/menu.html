@@ -841,9 +841,9 @@ endblock %} {% block content %}
               standCell.textContent = item.stand_id ? standMap.get(item.stand_id) : '—';
               row.appendChild(standCell);
 
-              // Inventory Items column (will fetch details if linked)
+              // Inventory Items column
               const inventoryCell = document.createElement('td');
-              inventoryCell.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Loading...';
+              row.appendChild(inventoryCell);
 
               // Fetch inventory items for this menu item
               return fetch(`/api/menu/${item.id}/inventory_items`)
@@ -920,30 +920,6 @@ endblock %} {% block content %}
 
                   return row;
                 });
-              } else {
-                // No linked inventory item
-                inventoryCell.textContent = '—';
-
-                // Add status cell with simple badge
-                const statusCell = document.createElement('td');
-                statusCell.innerHTML = item.is_available
-                  ? '<span class="badge bg-success">Available</span>'
-                  : '<span class="badge bg-secondary">Unavailable</span>';
-                row.appendChild(statusCell);
-
-                // Featured column
-                const featuredCell = document.createElement('td');
-                featuredCell.innerHTML = item.is_featured
-                  ? '<span class="badge bg-info"><i class="fas fa-star"></i> Featured</span>'
-                  : '—';
-                row.appendChild(featuredCell);
-
-                // Actions column
-                appendActionsCell(row, item);
-              }
-
-              row.appendChild(inventoryCell);
-              return row;
             }))
             .then(rows => {
               rows.forEach(row => {
