@@ -69,23 +69,35 @@ endblock %} {% block extra_css %}
 
 <div class="row mb-4">
   <div class="col-md-8">
-    <!-- Stand Selection -->
+    <!-- Stand and Window Selection -->
     <div class="card mb-4">
       <div class="card-header bg-primary text-white">
         <h5 class="card-title mb-0">
-          <i class="fas fa-store me-2"></i>Select Concession Stand
+          <i class="fas fa-store me-2"></i>Select Concession Stand and Window
         </h5>
       </div>
       <div class="card-body">
-        <label for="standSelect" class="form-label"
-          >Choose a concession stand</label
-        >
-        <select
-          id="standSelect"
-          class="form-select"
-          aria-label="Select concession stand">
-          <option value="">-- Select Stand --</option>
-        </select>
+        <div class="mb-3">
+          <label for="standSelect" class="form-label"
+            >Choose a concession stand</label
+          >
+          <select
+            id="standSelect"
+            class="form-select"
+            aria-label="Select concession stand">
+            <option value="">-- Select Stand --</option>
+          </select>
+        </div>
+
+        <div id="windowSelectionContainer" style="display: none;">
+          <label for="windowSelect" class="form-label">Choose a window</label>
+          <select
+            id="windowSelect"
+            class="form-select"
+            aria-label="Select window">
+            <option value="">-- Select Window --</option>
+          </select>
+        </div>
       </div>
     </div>
 
