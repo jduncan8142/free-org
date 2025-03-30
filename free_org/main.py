@@ -130,6 +130,15 @@ async def displays_management_page(request: Request):
     )
 
 
+@app.get("/pos", response_class=HTMLResponse)
+async def pos_page(request: Request):
+    """Serve the point of sale page for multiple-item transactions."""
+    return templates.TemplateResponse(
+        "pos.html",
+        {"request": request, "title": "Point of Sale"},
+    )
+
+
 @app.get("/display/{stand_id}", response_class=HTMLResponse)
 async def tv_display(request: Request, stand_id: int, session: Session = Depends(get_session)):
     """
