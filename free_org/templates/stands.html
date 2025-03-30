@@ -445,11 +445,16 @@ Stands{% endblock %} {% block content %}
 </div>
 
 <script>
+  // Define modal variables in a more accessible scope
+  let manageWindowsModal;
+  let addWindowModal;
+  let editWindowModal;
+
   document.addEventListener('DOMContentLoaded', function() {
     // Initialize modal instances
-    const manageWindowsModal = new bootstrap.Modal(document.getElementById('manageWindowsModal'));
-    const addWindowModal = new bootstrap.Modal(document.getElementById('addWindowModal'));
-    const editWindowModal = new bootstrap.Modal(document.getElementById('editWindowModal'));
+    manageWindowsModal = new bootstrap.Modal(document.getElementById('manageWindowsModal'));
+    addWindowModal = new bootstrap.Modal(document.getElementById('addWindowModal'));
+    editWindowModal = new bootstrap.Modal(document.getElementById('editWindowModal'));
 
     // Load concession stands on page load
     loadStands();
@@ -916,13 +921,6 @@ Stands{% endblock %} {% block content %}
   }
 
   function setupActionButtons() {
-    // View inventory for a stand
-    document.querySelectorAll('.view-inventory-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const standId = this.getAttribute('data-stand-id');
-        window.location.href = `/inventory?stand_id=${standId}`;
-      });
-    });
 
     // Manage windows for a stand
     document.querySelectorAll('.manage-windows-btn').forEach(btn => {
