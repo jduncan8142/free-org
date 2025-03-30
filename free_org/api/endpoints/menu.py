@@ -209,6 +209,8 @@ async def delete_menu_item(menu_item_id: int, session: Session = Depends(get_ses
     return None
 
 
+# Placing the inventory items endpoint higher in the routing hierarchy
+# to ensure it's matched before potentially conflicting routes
 @router.get("/{menu_item_id}/inventory_items", response_model=List[InventoryItem])
 def get_menu_item_inventory_items(menu_item_id: int, session: Session = Depends(get_session)):
     """
