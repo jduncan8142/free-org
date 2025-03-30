@@ -1,12 +1,12 @@
-# Concession Stand Inventory Management System
+# FREE ORG - Concessions Stand Inventory Management System
 
-A Python 3.13 application for tracking inventory for parent organization concession stands at a local high school. The system helps volunteers manage inventory across multiple stands, track sales, and automatically update menu displays on TVs.
+Free Org is a Python 3.13 application for managing concession stand processes and inventory. The system helps staff and volunteers manage inventory across multiple stands, track sales, and automatically update digital signage and menu displays.
 
 ## Features
 
-- **Inventory Management:** Track food, drinks, and supplies across multiple concession stands
-- **Multiple Stands Support:** Manage up to 3+ concession stands with expansion capability
-- **Menu Displays:** Automatically update TVs via Raspberry Pi when inventory changes
+- **Inventory Management:** Track food, drinks, and supplies across multiple concession stands.
+- **Multiple Stands Support:** Manage multiple concession stands each with their own inventory.
+- **Menu Displays:** Automatically update digital signage and menus in real time as inventory changes.
 - **Sales Tracking:** Record transactions with both cash and Square credit card payments
 - **Responsive Web UI:** Works on smartphones, tablets, and desktop computers
 - **Inventory Transfer:** Easily move inventory between stands when needed
@@ -28,22 +28,26 @@ A Python 3.13 application for tracking inventory for parent organization concess
 ### Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/yourusername/concession-stand-inventory.git
    cd concession-stand-inventory
    ```
 
 2. Install dependencies:
+
    ```bash
    pipenv install
    ```
 
 3. Activate the virtual environment:
+
    ```bash
    pipenv shell
    ```
 
 4. Run the application:
+
    ```bash
    cd free_org
    python main.py
