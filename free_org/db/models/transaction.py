@@ -45,10 +45,11 @@ class Transaction(SQLModel, table=True):
                               payment_method: PaymentMethod = PaymentMethod.CASH,
                               square_transaction_id: Optional[str] = None,
                               window_id: Optional[int] = None) -> "Transaction":
-            window_id=window_id,        """Create a transaction from a menu item."""
+        """Create a transaction from a menu item."""
         return cls(
             menu_item_id=menu_item.id,
             stand_id=menu_item.stand_id,
+            window_id=window_id,
             unit_price=menu_item.price,
             total_amount=menu_item.price * quantity,
             quantity=quantity,
