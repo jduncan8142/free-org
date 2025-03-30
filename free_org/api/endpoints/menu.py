@@ -284,7 +284,7 @@ async def link_inventory_items(
 
 
 @router.get("/{menu_item_id}/inventory_items", response_model=List[InventoryItem])
-async def get_menu_item_inventory_items(menu_item_id: int, session: Session = Depends(get_session)):
+def get_menu_item_inventory_items(menu_item_id: int, session: Session = Depends(get_session)):
     """
     Get all inventory items linked to a specific menu item.
 
