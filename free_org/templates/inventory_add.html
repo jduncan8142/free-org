@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Add Inventory Item{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-12">
+      <h1 class="mb-4">Add New Inventory Item</h1>
+      
+      <div class="card">
+        <div class="card-body">
+          <form id="add-inventory-form">
+            <!-- Stand Selection -->
+            <div class="mb-3">
+              <label for="stand_id" class="form-label">Concession Stand</label>
+              <select class="form-select" id="stand_id" name="stand_id">
+                <option value="">-- Select Stand (Optional) --</option>
+                <!-- Will be populated via API -->
+              </select>
+            </div>
+            
+            <!-- Item Name -->
+            <div class="mb-3">
+              <label for="name" class="form-label">Item Name</label>
+              <input type="text" class="form-control" id="name" name="name" required>
+            </div>
+            
+            <!-- Description -->
+            <div class="mb-3">
+              <label for="description" class="form-label">Description</label>
+              <textarea class="form-control" id="description" name="description" rows="2"></textarea>
+            </div>
+            
+            <!-- Item Type -->
+            <div class="mb-3">
+              <label for="item_type" class="form-label">Item Type</label>
+              <select class="form-select" id="item_type" name="item_type" required>
+                <option value="">-- Select Type --</option>
+                <option value="food">Food</option>
+                <option value="drink">Drink</option>
+                <option value="supply">Supply</option>
+              </select>
+            </div>
+            
+            <!-- Unit -->
+            <div class="mb-3">
+              <label for="unit" class="form-label">Unit of Measurement</label>
+              <select class="form-select" id="unit" name="unit" required>
+                <option value="">-- Select Unit --</option>
+                <option value="each">Each</option>
+                <option value="box">Box</option>
+                <option value="case">Case</option>
+                <option value="pound">Pound</option>
+                <option value="ounce">Ounce</option>
+                <option value="gallon">Gallon</option>
+                <option value="liter">Liter</option>
+              </select>
+            </div>
+            
+            <!-- Quantity -->
+            <div class="mb-3">
+              <label for="quantity" class="form-label">Current Quantity</label>
+              <input type="number" class="form-control" id="quantity" name="quantity" value="0" min="0" required>
+            </div>
+            
+            <!-- Minimum Threshold -->
+            <div class="mb-3">
+              <label for="minimum_threshold" class="form-label">Minimum Threshold</label>
+              <input type="number" class="form-control" id="minimum_threshold" name="minimum_threshold" value="5" min="0" required>
+              <div class="form-text">When quantity falls below this threshold, item will be removed from menu displays</div>
+            </div>
+            
+            <!-- Unit Cost -->
+            <div class="mb-3">
+              <label for="unit_cost" class="form-label">Unit Cost ($)</label>
+              <input type="number" class="form-control" id="unit_cost" name="unit_cost" value="0.00" min="0" step="0.01">
+            </div>
+            
+            <!-- Submit Button -->
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary">Add Inventory Item</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      
+      <!-- Alerts for form submission results -->
+      <div class="mt-3">
+        <div class="alert alert-success d-none" id="success-alert">
+          Inventory item added successfully!
+        </div>
+        <div class="alert alert-danger d-none" id="error-alert">
+          Error adding inventory item. Please try again.
+        </div>
+      </div>
+      
+      <div class="mt-3">
+        <a href="/inventory" class="btn btn-secondary">Back to Inventory</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Load stands for the dropdown
+    fetch('/api/stands/')
+      .then(response => response.json())
+      .then(stands => {
+        const standSelect = document.getElementById('stand_id');
+        stands.forEach(stand => {
+          const option = document.createElement('option');
+          option.value = stand.id;
+          option.textContent = stand.name;
+          standSelect.appendChild(option);
+        });
+      })
+      .catch(error => console.error('Error loading stands:', error));
+    
+    // Form submission handler
+    const form = document.getElementById('add-inventory-form');
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Collect form data
+      const formData = new FormData(form);
+      const data = {};
+      
+      formData.forEach((value, key) => {
+        // Convert numeric values
+        if (key === 'quantity' || key === 'minimum_threshold') {
+          data[key] = parseInt(value, 10);
+        } else if (key === 'unit_cost') {
+          data[key] = parseFloat(value);
+        } else if (key === 'stand_id') {
+          if (value) { // Only include if selected
+            data[key] = parseInt(value, 10);
+          }
+        } else {
+          data[key] = value;
+        }
+      });
+      
+      // Submit to API
+      fetch('/api/inventory/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Error adding inventory item');
+        }
+        return response.json();
+      })
+      .then(result => {
+        // Show success message
+        document.getElementById('success-alert').classList.remove('d-none');
+        document.getElementById('error-alert').classList.add('d-none');
+        
+        // Reset form
+        form.reset();
+        
+        // Auto-redirect after delay
+        setTimeout(() => {
+          window.location.href = '/inventory';
+        }, 2000);
+      })
+      .catch(error => {
+        // Show error message
+        document.getElementById('error-alert').classList.remove('d-none');
+        document.getElementById('success-alert').classList.add('d-none');
+        console.error('Error:', error);
+      });
+    });
+  });
+</script>
+{% endblock %}

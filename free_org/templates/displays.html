@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Manage TV Displays{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>TV Display Management</h1>
+      </div>
+      
+      <div class="alert alert-info" role="alert">
+        <i class="fas fa-info-circle"></i> 
+        This page allows you to manage TV displays for Raspberry Pi computers at each concession stand.
+        TVs will automatically hide menu items when their linked inventory falls below the minimum threshold.
+      </div>
+      
+      <!-- Concession Stands Cards -->
+      <div class="row" id="stands-container">
+        <div class="col-12 text-center py-5" id="loading-state">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-2">Loading concession stands...</p>
+        </div>
+        
+        <!-- Empty state (shown when no stands exist) -->
+        <div class="col-12 text-center py-5 d-none" id="empty-state">
+          <i class="fas fa-tv fa-4x text-muted mb-3"></i>
+          <h4>No Concession Stands Found</h4>
+          <p class="text-muted">You need to create concession stands before setting up displays</p>
+          <a href="/stands" class="btn btn-primary mt-2">
+            <i class="fas fa-plus-circle"></i> Create Stands
+          </a>
+        </div>
+        
+        <!-- Stand cards will be inserted here -->
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<!-- Display Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="previewModalLabel">TV Display Preview</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="ratio ratio-16x9">
+          <iframe id="preview-iframe" src="" title="TV Display Preview" allowfullscreen></iframe>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="col text-start">
+          <p class="text-muted small mb-0">
+            <i class="fas fa-info-circle"></i> This preview shows how the menu will appear on TV displays
+          </p>
+        </div>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- QR Code Modal -->
+<div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="qrCodeModalLabel">Display URL & QR Code</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <div id="qrcode-container" class="mb-3"></div>
+        <div class="input-group mb-3">
+          <input type="text" id="display-url" class="form-control" readonly>
+          <button class="btn btn-outline-secondary" type="button" id="copy-url-btn">
+            <i class="fas fa-copy"></i>
+          </button>
+        </div>
+        <p class="text-muted">
+          Scan this QR code with your Raspberry Pi or enter the URL directly to display the menu.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stand Settings Modal -->
+<div class="modal fade" id="standSettingsModal" tabindex="-1" aria-labelledby="standSettingsModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="standSettingsModalLabel">Display Settings</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="display-settings-form">
+          <input type="hidden" id="settings-stand-id">
+          
+          <div class="mb-3">
+            <label for="refresh-interval" class="form-label">Refresh Interval (minutes)</label>
+            <input type="number" class="form-control" id="refresh-interval" min="1" max="60" value="5">
+            <small class="form-text text-muted">
+              How often the display should refresh to show updated inventory and menu items.
+            </small>
+          </div>
+          
+          <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="show-prices" checked>
+            <label class="form-check-label" for="show-prices">Show Prices</label>
+          </div>
+          
+          <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="show-descriptions" checked>
+            <label class="form-check-label" for="show-descriptions">Show Descriptions</label>
+          </div>
+          
+          <div class="mb-3">
+            <label for="header-text" class="form-label">Header Text (optional)</label>
+            <input type="text" class="form-control" id="header-text" 
+                  placeholder="e.g., Welcome to the Concession Stand!">
+          </div>
+          
+          <div class="mb-3">
+            <label for="display-theme" class="form-label">Display Theme</label>
+            <select class="form-select" id="display-theme">
+              <option value="default">Default</option>
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+              <option value="team-colors">Team Colors</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="save-settings-btn">Save Settings</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // QR Code library (placeholder - would be loaded from CDN in production)
+  document.head.insertAdjacentHTML('beforeend', 
+    '<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"><\/script>');
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Load all concession stands
+    loadStands();
+    
+    // Handle copy URL button
+    document.getElementById('copy-url-btn').addEventListener('click', function() {
+      const urlInput = document.getElementById('display-url');
+      urlInput.select();
+      document.execCommand('copy');
+      
+      // Show tooltip or feedback
+      this.innerHTML = '<i class="fas fa-check"></i> Copied!';
+      setTimeout(() => {
+        this.innerHTML = '<i class="fas fa-copy"></i>';
+      }, 2000);
+    });
+    
+    // Handle save settings button
+    document.getElementById('save-settings-btn').addEventListener('click', function() {
+      const standId = document.getElementById('settings-stand-id').value;
+      
+      // In a real implementation, these settings would be saved to the server
+      // For this demo, we'll just close the modal and show a success message
+      const modal = bootstrap.Modal.getInstance(document.getElementById('standSettingsModal'));
+      modal.hide();
+      
+      alert('Display settings saved successfully!');
+      
+      // Refresh the preview if it's currently open
+      const previewIframe = document.getElementById('preview-iframe');
+      if (previewIframe.src.includes(`/display/${standId}`)) {
+        previewIframe.src = previewIframe.src;
+      }
+    });
+  });
+
+  function loadStands() {
+    // Show loading state
+    document.getElementById('loading-state').classList.remove('d-none');
+    document.getElementById('empty-state').classList.add('d-none');
+    
+    // Fetch stands from API
+    fetch('/api/stands/')
+      .then(response => response.json())
+      .then(stands => {
+        // Hide loading state
+        document.getElementById('loading-state').classList.add('d-none');
+        
+        // Check if empty
+        if (stands.length === 0) {
+          document.getElementById('empty-state').classList.remove('d-none');
+          return;
+        }
+        
+        // Clear existing cards
+        const container = document.getElementById('stands-container');
+        
+        // Create a card for each stand
+        stands.forEach(stand => {
+          createStandCard(container, stand);
+        });
+        
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+      })
+      .catch(error => {
+        console.error('Error loading stands:', error);
+        
+        // Show error message
+        document.getElementById('loading-state').classList.add('d-none');
+        document.getElementById('stands-container').innerHTML = `
+          <div class="col-12 text-center py-5">
+            <i class="fas fa-exclamation-circle fa-3x text-danger mb-3"></i>
+            <h4>Error Loading Stands</h4>
+            <p>Could not load concession stands. Please try refreshing the page.</p>
+          </div>
+        `;
+      });
+  }
+
+  function createStandCard(container, stand) {
+    // Create column
+    const col = document.createElement('div');
+    col.className = 'col-md-6 col-lg-4 mb-4';
+    
+    // Call the API to check if this stand has menu items
+    fetch(`/api/menu/?stand_id=${stand.id}`)
+      .then(response => response.json())
+      .then(menuItems => {
+        const hasMenuItems = menuItems.length > 0;
+        
+        // Create card
+        col.innerHTML = `
+          <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+              <h5 class="mb-0">${stand.name}</h5>
+            </div>
+            <div class="card-body">
+              <p><strong>Location:</strong> ${stand.location || 'N/A'}</p>
+              <p>${stand.description || 'No description available.'}</p>
+              
+              <div class="d-flex gap-2 flex-wrap">
+                <!-- Menu Items Stats -->
+                <div class="bg-light p-2 rounded flex-grow-1 text-center">
+                  <i class="fas fa-utensils"></i>
+                  <span class="ms-1"><strong>${menuItems.length}</strong> Menu Items</span>
+                </div>
+                
+                <!-- Active Status -->
+                <div class="bg-light p-2 rounded flex-grow-1 text-center">
+                  <i class="fas ${stand.is_active ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'}"></i>
+                  <span class="ms-1">${stand.is_active ? 'Active' : 'Inactive'}</span>
+                </div>
+              </div>
+              
+              <hr>
+              
+              <!-- Display URL and QR Code info -->
+              <p class="mb-2">
+                <i class="fas fa-tv me-2"></i>
+                <strong>TV Display URL</strong>
+              </p>
+              <p class="small text-muted">
+                Access this URL on your Raspberry Pi to show the menu display for this stand.
+              </p>
+              
+              <!-- Action buttons -->
+              <div class="mt-3">
+                <button type="button" class="btn btn-sm btn-outline-primary me-1" 
+                        onclick="showQRCode(${stand.id}, '${stand.name}')"
+                        ${!hasMenuItems ? 'disabled' : ''}>
+                  <i class="fas fa-qrcode"></i> Display URL
+                </button>
+                
+                <button type="button" class="btn btn-sm btn-outline-secondary me-1"
+                        onclick="showSettings(${stand.id})"
+                        ${!hasMenuItems ? 'disabled' : ''}>
+                  <i class="fas fa-cog"></i> Settings
+                </button>
+                
+                <button type="button" class="btn btn-sm btn-outline-success"
+                        onclick="previewDisplay(${stand.id})"
+                        ${!hasMenuItems ? 'disabled' : ''}>
+                  <i class="fas fa-eye"></i> Preview
+                </button>
+              </div>
+              
+              ${!hasMenuItems ? `
+                <div class="alert alert-warning mt-3 mb-0">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  This stand has no menu items. <a href="/menu">Add menu items</a> to enable display.
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+        
+        // Add to container
+        container.appendChild(col);
+      })
+      .catch(error => {
+        console.error('Error loading menu items for stand:', error);
+        
+        // Create card with error state
+        col.innerHTML = `
+          <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+              <h5 class="mb-0">${stand.name}</h5>
+            </div>
+            <div class="card-body">
+              <p><strong>Location:</strong> ${stand.location || 'N/A'}</p>
+              <p>${stand.description || 'No description available.'}</p>
+              
+              <div class="alert alert-danger mt-3 mb-0">
+                <i class="fas fa-exclamation-circle"></i>
+                Error loading menu items for this stand.
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // Add to container
+        container.appendChild(col);
+      });
+  }
+
+  function showQRCode(standId, standName) {
+    // Generate the display URL
+    const baseUrl = window.location.origin;
+    const displayUrl = `${baseUrl}/display/${standId}`;
+    
+    // Set the URL in the input field
+    document.getElementById('display-url').value = displayUrl;
+    
+    // Update modal title
+    document.getElementById('qrCodeModalLabel').textContent = `Display URL & QR Code: ${standName}`;
+    
+    // Generate QR code
+    const qrcodeContainer = document.getElementById('qrcode-container');
+    qrcodeContainer.innerHTML = ''; // Clear previous QR code
+    
+    // In a real implementation, you would use the imported QR code library
+    // For this demo, we'll create a placeholder
+    if (typeof QRCode !== 'undefined') {
+      new QRCode(qrcodeContainer, {
+        text: displayUrl,
+        width: 256,
+        height: 256,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+      });
+    } else {
+      // Fallback if QR code library isn't loaded
+      qrcodeContainer.innerHTML = `
+        <div class="bg-light p-4 text-center">
+          <i class="fas fa-qrcode fa-5x mb-3"></i>
+          <p>QR Code for URL:</p>
+          <p class="text-primary">${displayUrl}</p>
+        </div>
+      `;
+    }
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('qrCodeModal'));
+    modal.show();
+  }
+
+  function showSettings(standId) {
+    // Set the stand ID in the hidden field
+    document.getElementById('settings-stand-id').value = standId;
+    
+    // In a real implementation, you would load current settings from the server
+    // For this demo, we'll use default values
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('standSettingsModal'));
+    modal.show();
+  }
+
+  function previewDisplay(standId) {
+    // Set the iframe source to the display URL
+    const baseUrl = window.location.origin;
+    const displayUrl = `${baseUrl}/display/${standId}`;
+    document.getElementById('preview-iframe').src = displayUrl;
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    modal.show();
+  }
+</script>
+{% endblock %}

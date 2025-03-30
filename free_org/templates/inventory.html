@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Manage Inventory{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Inventory Management</h1>
+        <a href="/inventory/add" class="btn btn-primary">
+          <i class="fas fa-plus-circle"></i> Add New Item
+        </a>
+      </div>
+      
+      <!-- Filters -->
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5 class="card-title">Filters</h5>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label for="stand-filter" class="form-label">Concession Stand</label>
+              <select class="form-select" id="stand-filter">
+                <option value="">All Stands</option>
+                <!-- Will be populated via API -->
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label for="type-filter" class="form-label">Item Type</label>
+              <select class="form-select" id="type-filter">
+                <option value="">All Types</option>
+                <option value="food">Food</option>
+                <option value="drink">Drink</option>
+                <option value="supply">Supply</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label for="available-filter" class="form-label">Availability</label>
+              <select class="form-select" id="available-filter">
+                <option value="">All Items</option>
+                <option value="available">Available Only</option>
+                <option value="low">Low Stock</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Inventory Table -->
+      <div class="card">
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover" id="inventory-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Stand</th>
+                  <th>Quantity</th>
+                  <th>Unit</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Will be populated via API -->
+                <tr id="loading-row">
+                  <td colspan="7" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                      <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading inventory items...</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Empty State -->
+          <div id="empty-state" class="d-none text-center py-5">
+            <i class="fas fa-box-open fa-4x text-muted mb-3"></i>
+            <h4>No Inventory Items Found</h4>
+            <p class="text-muted">Start by adding some inventory items</p>
+            <a href="/inventory/add" class="btn btn-primary mt-2">
+              <i class="fas fa-plus-circle"></i> Add New Item
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Load stands for the filter dropdown
+    fetch('/api/stands/')
+      .then(response => response.json())
+      .then(stands => {
+        const standFilter = document.getElementById('stand-filter');
+        stands.forEach(stand => {
+          const option = document.createElement('option');
+          option.value = stand.id;
+          option.textContent = stand.name;
+          standFilter.appendChild(option);
+        });
+      })
+      .catch(error => console.error('Error loading stands:', error));
+    
+    // Load inventory items
+    loadInventoryItems();
+    
+    // Set up filter change handlers
+    document.getElementById('stand-filter').addEventListener('change', loadInventoryItems);
+    document.getElementById('type-filter').addEventListener('change', loadInventoryItems);
+    document.getElementById('available-filter').addEventListener('change', loadInventoryItems);
+  });
+  
+  function loadInventoryItems() {
+    const standFilter = document.getElementById('stand-filter').value;
+    const typeFilter = document.getElementById('type-filter').value;
+    const availableFilter = document.getElementById('available-filter').value;
+    
+    // Build query string
+    let queryParams = new URLSearchParams();
+    if (standFilter) {
+      queryParams.append('stand_id', standFilter);
+    }
+    if (typeFilter) {
+      queryParams.append('item_type', typeFilter);
+    }
+    if (availableFilter === 'available') {
+      queryParams.append('available_only', 'true');
+    }
+    
+    // Show loading state
+    document.getElementById('loading-row').classList.remove('d-none');
+    document.getElementById('empty-state').classList.add('d-none');
+    
+    // Fetch inventory items
+    fetch(`/api/inventory/?${queryParams.toString()}`)
+      .then(response => response.json())
+      .then(items => {
+        // Hide loading row
+        document.getElementById('loading-row').classList.add('d-none');
+        
+        // Show empty state if no items
+        if (items.length === 0) {
+          document.getElementById('empty-state').classList.remove('d-none');
+          return;
+        }
+        
+        // Get stands for lookup
+        return fetch('/api/stands/')
+          .then(response => response.json())
+          .then(stands => {
+            // Create lookup map for stand names
+            const standMap = new Map();
+            stands.forEach(stand => {
+              standMap.set(stand.id, stand.name);
+            });
+            
+            // Populate table
+            const tableBody = document.getElementById('inventory-table').querySelector('tbody');
+            tableBody.innerHTML = ''; // Clear existing rows except loading row
+            
+            items.forEach(item => {
+              const row = document.createElement('tr');
+              
+              // Set background color for low stock
+              if (item.quantity <= item.minimum_threshold) {
+                row.classList.add('table-danger');
+              }
+              
+              // Name column
+              const nameCell = document.createElement('td');
+              nameCell.textContent = item.name;
+              if (item.description) {
+                nameCell.setAttribute('data-bs-toggle', 'tooltip');
+                nameCell.setAttribute('title', item.description);
+              }
+              row.appendChild(nameCell);
+              
+              // Type column
+              const typeCell = document.createElement('td');
+              typeCell.textContent = item.item_type.charAt(0).toUpperCase() + item.item_type.slice(1);
+              row.appendChild(typeCell);
+              
+              // Stand column
+              const standCell = document.createElement('td');
+              standCell.textContent = item.stand_id ? standMap.get(item.stand_id) : '—';
+              row.appendChild(standCell);
+              
+              // Quantity column
+              const quantityCell = document.createElement('td');
+              quantityCell.textContent = item.quantity;
+              row.appendChild(quantityCell);
+              
+              // Unit column
+              const unitCell = document.createElement('td');
+              unitCell.textContent = item.unit;
+              row.appendChild(unitCell);
+              
+              // Status column
+              const statusCell = document.createElement('td');
+              if (item.quantity <= 0) {
+                statusCell.innerHTML = '<span class="badge bg-danger">Out of Stock</span>';
+              } else if (item.quantity <= item.minimum_threshold) {
+                statusCell.innerHTML = '<span class="badge bg-warning text-dark">Low Stock</span>';
+              } else {
+                statusCell.innerHTML = '<span class="badge bg-success">In Stock</span>';
+              }
+              row.appendChild(statusCell);
+              
+              // Actions column
+              const actionsCell = document.createElement('td');
+              actionsCell.innerHTML = `
+                <div class="btn-group btn-group-sm" role="group">
+                  <button type="button" class="btn btn-outline-primary adjust-btn" data-item-id="${item.id}">
+                    <i class="fas fa-plus-minus"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary edit-btn" data-item-id="${item.id}">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-danger delete-btn" data-item-id="${item.id}">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              `;
+              row.appendChild(actionsCell);
+              
+              tableBody.appendChild(row);
+            });
+            
+            // Initialize tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+              return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
+            // Setup action buttons
+            setupActionButtons();
+          });
+      })
+      .catch(error => {
+        console.error('Error loading inventory:', error);
+        document.getElementById('loading-row').classList.add('d-none');
+        
+        // Show error message
+        const tableBody = document.getElementById('inventory-table').querySelector('tbody');
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center py-4 text-danger">
+              <i class="fas fa-exclamation-circle fa-2x mb-3"></i>
+              <p>Error loading inventory items. Please try again.</p>
+            </td>
+          </tr>
+        `;
+      });
+  }
+  
+  function setupActionButtons() {
+    // Adjust inventory quantity
+    document.querySelectorAll('.adjust-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const itemId = this.getAttribute('data-item-id');
+        // In a real implementation, show a modal to adjust quantity
+        alert(`Adjust quantity for item ${itemId} - Not yet implemented`);
+      });
+    });
+    
+    // Edit inventory item
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const itemId = this.getAttribute('data-item-id');
+        // In a real implementation, redirect to edit page
+        alert(`Edit item ${itemId} - Not yet implemented`);
+      });
+    });
+    
+    // Delete inventory item
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const itemId = this.getAttribute('data-item-id');
+        if (confirm('Are you sure you want to delete this inventory item?')) {
+          fetch(`/api/inventory/${itemId}`, {
+            method: 'DELETE'
+          })
+          .then(response => {
+            if (response.ok) {
+              // Reload inventory items
+              loadInventoryItems();
+            } else {
+              alert('Error deleting inventory item');
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting inventory item');
+          });
+        }
+      });
+    });
+  }
+</script>
+{% endblock %}

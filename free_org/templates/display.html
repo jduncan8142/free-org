@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="refresh" content="300" />
+    <!-- Fallback refresh every 5 minutes -->
+    <title>Menu Display - {{ stand_name }}</title>
+
+    <!-- Bootstrap CSS for responsive layout -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet" />
+    <!-- Font Awesome for icons -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet" />
+    <!-- Custom CSS -->
+    <link
+      href="{{ url_for('static', path='/css/styles.css') }}"
+      rel="stylesheet" />
+
+    <style>
+      /* Additional display-specific styles */
+      body {
+          background-color: #000;
+          color: #fff;
+          font-family: Arial, sans-serif;
+          overflow: hidden;
+          padding: 0;
+          margin: 0;
+      }
+
+      .menu-header {
+          background-color: #3054a4;
+          padding: 25px 0;
+          margin-bottom: 30px;
+          text-align: center;
+      }
+
+      .menu-header h1 {
+          font-size: 3rem;
+          font-weight: bold;
+          margin: 0;
+      }
+
+      .menu-header h2 {
+          font-size: 2rem;
+          margin: 10px 0 0 0;
+      }
+
+      .menu-item {
+          margin-bottom: 25px;
+          padding: 20px;
+          border-radius: 10px;
+          background-color: rgba(0, 0, 0, 0.7);
+          border-left: 5px solid #ffc107;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+      }
+
+      .menu-item .item-name {
+          font-size: 2.5rem;
+          font-weight: bold;
+          margin-bottom: 10px;
+      }
+
+      .menu-item .item-description {
+          font-size: 1.5rem;
+          color: #ccc;
+      }
+
+      .menu-item .price {
+          font-size: 3rem;
+          font-weight: bold;
+          color: #ffc107;
+          text-align: right;
+      }
+
+      .featured-item {
+          background-color: rgba(255, 193, 7, 0.2);
+          border-left: 8px solid #dc3545;
+      }
+
+      .featured-badge {
+          position: absolute;
+          top: -10px;
+          right: 10px;
+          background-color: #dc3545;
+          color: white;
+          padding: 5px 15px;
+          border-radius: 20px;
+          font-size: 1.2rem;
+          font-weight: bold;
+      }
+
+      .menu-section {
+          margin-bottom: 40px;
+      }
+
+      .section-title {
+          font-size: 2rem;
+          margin-bottom: 20px;
+          border-bottom: 2px solid #ffc107;
+          padding-bottom: 10px;
+      }
+
+      .footer {
+          position: fixed;
+          bottom: 0;
+          width: 100%;
+          background-color: #3054a4;
+          text-align: center;
+          padding: 15px 0;
+          font-size: 1.5rem;
+      }
+
+      /* Handle scrolling for many items */
+      .menu-container {
+          overflow-y: auto;
+          max-height: calc(100vh - 240px); /* Adjust based on header/footer */
+          padding: 0 20px;
+      }
+    </style>
+  </head>
+  <body class="tv-display">
+    <!-- Header -->
+    <div class="menu-header">
+      <div class="container">
+        <h1>{{ stand_name }}</h1>
+        <h2>{{ stand_location }}</h2>
+      </div>
+    </div>
+
+    <!-- Menu Items -->
+    <div class="container menu-container">
+      <!-- Featured Items Section -->
+      {% if featured_items %}
+      <div class="menu-section">
+        <h2 class="section-title">Featured Items</h2>
+
+        {% for item in featured_items %}
+        <div class="menu-item featured-item position-relative">
+          <span class="featured-badge">FEATURED</span>
+          <div>
+            <div class="item-name">{{ item.name }}</div>
+            {% if item.description %}
+            <div class="item-description">{{ item.description }}</div>
+            {% endif %}
+          </div>
+          <div class="price">{{ item.price }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Regular Menu Items -->
+      <div class="menu-section">
+        <h2 class="section-title">Menu</h2>
+
+        {% for item in items %}
+        <div class="menu-item">
+          <div>
+            <div class="item-name">{{ item.name }}</div>
+            {% if item.description %}
+            <div class="item-description">{{ item.description }}</div>
+            {% endif %}
+          </div>
+          <div class="price">{{ item.price }}</div>
+        </div>
+        {% endfor %} {% if not items and not featured_items %}
+        <div class="alert alert-warning">
+          <h3 class="text-center">No menu items available</h3>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="container">
+        <span id="current-time">{{ current_time }}</span>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Custom JavaScript -->
+    <script src="{{ url_for('static', path='/js/main.js') }}"></script>
+
+    <script>
+      // Update the time every second
+      function updateTime() {
+          const now = new Date();
+          document.getElementById('current-time').innerText = now.toLocaleTimeString();
+      }
+
+      // Initialize display
+      $(document).ready(function() {
+          // Update time
+          updateTime();
+          setInterval(updateTime, 1000);
+
+          // Set up automatic refresh of menu data
+          const standId = "{{ stand_id }}";
+
+          // Initial load already done by server-side rendering
+          // Set up periodic refresh without full page reload
+          setInterval(function() {
+              // Fetch latest menu data
+              fetch(`/api/display/menu/${standId}`)
+                  .then(response => response.json())
+                  .then(data => {
+                      // Check if data changed
+                      const currentItemCount = $('.menu-item').length;
+                      const newItemCount = (data.items?.length || 0) + (data.featured_items?.length || 0);
+
+                      // If count changed, force a full reload to let the server rerender
+                      if (currentItemCount !== newItemCount) {
+                          location.reload();
+                          return;
+                      }
+
+                      // Otherwise just update the time
+                      updateTime();
+                  })
+                  .catch(error => {
+                      console.error("Error fetching menu data:", error);
+                  });
+          }, 30000); // Check for updates every 30 seconds
+      });
+    </script>
+  </body>
+</html>
