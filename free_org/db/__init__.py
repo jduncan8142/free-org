@@ -13,6 +13,7 @@ from free_org.db.models import (
     MenuItem,
     Transaction,
     PaymentMethod,
+    MenuItemInventory,
 )
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     "MenuItem",
     "Transaction",
     "PaymentMethod",
+    "MenuItemInventory",
 ]
