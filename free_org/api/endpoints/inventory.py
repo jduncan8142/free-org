@@ -1,8 +1,9 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlmodel import Session, select, update
+from sqlmodel import Session, select
 
 from free_org.db import get_session, InventoryItem, ItemType, MenuItem, ConcessionStand
+from free_org.db.models.menu_inventory import MenuItemInventory
 
 router = APIRouter()
 
@@ -99,7 +100,6 @@ async def update_inventory_item(item_id: int, updated_item: InventoryItem, sessi
             )
 
     # Save previous quantity to check for threshold changes
-    previous_quantity = db_item.quantity
     previous_available = db_item.is_available
 
     # Update item attributes
@@ -114,7 +114,7 @@ async def update_inventory_item(item_id: int, updated_item: InventoryItem, sessi
 
     # Check if availability changed (crossed threshold)
     if previous_available != db_item.is_available:
-        # Update menu items if item is no longer available
+        # Update menu items if availability changed
         await _update_menu_items_availability(session, db_item)
 
     return db_item
@@ -131,9 +131,48 @@ async def delete_inventory_item(item_id: int, session: Session = Depends(get_ses
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Inventory item with ID {item_id} not found")
 
-    # Delete the item
+    # Find and delete all links to menu items first
+    links = session.exec(select(MenuItemInventory).where(MenuItemInventory.inventory_item_id == item_id)).all()
+
+    # Remember which menu items were linked to update their availability later
+    menu_item_ids = [link.menu_item_id for link in links]
+
+    # Delete all links
+    for link in links:
+        session.delete(link)
+
+    # Then delete the inventory item
     session.delete(item)
     session.commit()
+
+    # Update availability of affected menu items
+    if menu_item_ids:
+        for menu_id in menu_item_ids:
+            menu_item = session.get(MenuItem, menu_id)
+            if menu_item:
+                # Get all remaining linked inventory items
+                remaining_links = session.exec(
+                    select(MenuItemInventory).where(MenuItemInventory.menu_item_id == menu_id)
+                ).all()
+
+                # If no more links or any linked inventory is unavailable, menu item is unavailable
+                if not remaining_links:
+                    menu_item.is_available = True  # No ingredients needed, so available
+                else:
+                    # Check if all linked inventory items are available
+                    all_available = True
+                    for link in remaining_links:
+                        inv_item = session.get(InventoryItem, link.inventory_item_id)
+                        if not inv_item or not inv_item.is_available:
+                            all_available = False
+                            break
+
+                    menu_item.is_available = all_available
+
+                session.add(menu_item)
+
+        session.commit()
+
     return None
 
 
@@ -174,7 +213,7 @@ async def adjust_inventory(
 
     # Check if availability changed (crossed threshold)
     if previous_available != item.is_available:
-        # Update menu items if item is no longer available
+        # Update menu items if availability changed
         await _update_menu_items_availability(session, item)
 
     return item
@@ -184,14 +223,38 @@ async def _update_menu_items_availability(session: Session, item: InventoryItem)
     """
     Update menu items availability based on inventory levels.
     This ensures menu displays are automatically updated when inventory falls below threshold.
-    """
-    # Find all menu items linked to this inventory item
-    query = select(MenuItem).where(MenuItem.inventory_item_id == item.id)
-    menu_items = session.exec(query).all()
 
-    # Update their availability based on inventory status
-    for menu_item in menu_items:
-        menu_item.is_available = item.is_available
-        session.add(menu_item)
+    When inventory becomes unavailable, any menu item that uses it should also be unavailable.
+    When inventory becomes available, menu items using it should be checked if all their
+    other required inventory items are also available.
+    """
+    # Find all menu items linked to this inventory item via the join table
+    links = session.exec(select(MenuItemInventory).where(MenuItemInventory.inventory_item_id == item.id)).all()
+
+    menu_item_ids = [link.menu_item_id for link in links]
+
+    for menu_id in menu_item_ids:
+        menu_item = session.get(MenuItem, menu_id)
+        if menu_item:
+            if not item.is_available:
+                # If this inventory item is unavailable, the menu item becomes unavailable
+                menu_item.is_available = False
+            else:
+                # If this inventory item is available, check all other linked inventory items
+                # Only if ALL linked inventory items are available, the menu item is available
+                all_links = session.exec(
+                    select(MenuItemInventory).where(MenuItemInventory.menu_item_id == menu_id)
+                ).all()
+
+                all_available = True
+                for link in all_links:
+                    inv_item = session.get(InventoryItem, link.inventory_item_id)
+                    if not inv_item or not inv_item.is_available:
+                        all_available = False
+                        break
+
+                menu_item.is_available = all_available
+
+            session.add(menu_item)
 
     session.commit()
