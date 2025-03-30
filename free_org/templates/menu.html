@@ -550,12 +550,8 @@ endblock %} {% block content %}
         image_path: formData.get('image_path') || null
       };
 
-      // Add inventory item ID if selected
-      if (formData.get('inventory_item_id')) {
-        data.inventory_item_id = parseInt(formData.get('inventory_item_id'));
-      } else {
-        data.inventory_item_id = null;
-      }
+      // Add inventory item IDs from our linked items list
+      const inventoryItems = { inventory_item_ids: editLinkedInventoryItems };
 
       // Submit to API
       fetch(`/api/menu/${menuItemId}`, {
