@@ -10,6 +10,9 @@ python-dotenv = "*"
 bcrypt = "*"
 
 [dev-packages]
+pytest = "*"
+pytest-cov = "*"
+httpx = "*"
 
 [requires]
 python_version = "3.13"
