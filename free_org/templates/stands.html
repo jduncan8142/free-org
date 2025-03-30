@@ -603,10 +603,16 @@ Stands{% endblock %} {% block content %}
         body: JSON.stringify(data),
       })
       .then(response => {
-        if (!response.ok) {
-          throw new Error('Error adding window');
-        }
-        return response.json();
+        // Always process the JSON response even if status is not OK
+        // This allows us to get error details from the API
+        return response.json().then(data => {
+          // If response is not OK, attach the response object to the data for error handling
+          if (!response.ok) {
+            data.status = response.status;
+            return Promise.reject(data);
+          }
+          return data;
+        });
       })
       .then(result => {
         // Close modal and reset form
@@ -618,7 +624,15 @@ Stands{% endblock %} {% block content %}
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('Error adding window');
+
+        // Check if the error response contains a detail message from the API
+        if (error.detail) {
+          alert(`Error: ${error.detail}`);
+        } else {
+          // If window was added but there was a display error, don't show an alert
+          // This prevents confusion when the window is actually added
+          loadWindows(standId);
+        }
       });
     });
 
