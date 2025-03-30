@@ -3,6 +3,128 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
 from free_org.db import get_session, ConcessionStand, InventoryItem
+from free_org.db.models.window import Window
+
+
+@router.get("/{stand_id}/windows", response_model=List[Window])
+async def get_stand_windows(stand_id: int, session: Session = Depends(get_session), active_only: bool = False):
+    """
+    Get windows for a specific stand.
+
+    - **stand_id**: The ID of the stand
+    - **active_only**: If true, only return active windows
+    """
+    # Verify stand exists
+    stand = session.get(ConcessionStand, stand_id)
+    if not stand:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Concession stand with ID {stand_id} not found"
+        )
+
+    # Get windows for this stand
+    query = select(Window).where(Window.stand_id == stand_id)
+    if active_only:
+        query = query.where(Window.is_active == True)
+
+    windows = session.exec(query).all()
+    return windows
+
+
+@router.post("/{stand_id}/windows", response_model=Window, status_code=status.HTTP_201_CREATED)
+async def create_window(stand_id: int, window: Window, session: Session = Depends(get_session)):
+    """
+    Create a new window for a stand.
+
+    - **stand_id**: The ID of the stand
+    """
+    # Verify stand exists
+    stand = session.get(ConcessionStand, stand_id)
+    if not stand:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Concession stand with ID {stand_id} not found"
+        )
+
+    # Ensure the window is associated with the specified stand
+    window.stand_id = stand_id
+
+    # Save the new window
+    session.add(window)
+    session.commit()
+    session.refresh(window)
+    return window
+
+
+@router.put("/{stand_id}/windows/{window_id}", response_model=Window)
+async def update_window(stand_id: int, window_id: int, updated_window: Window, session: Session = Depends(get_session)):
+    """
+    Update an existing window.
+
+    - **stand_id**: The ID of the stand
+    - **window_id**: The ID of the window to update
+    """
+    # Verify stand exists
+    stand = session.get(ConcessionStand, stand_id)
+    if not stand:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Concession stand with ID {stand_id} not found"
+        )
+
+    # Get the existing window
+    db_window = session.get(Window, window_id)
+    if not db_window:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Window with ID {window_id} not found")
+
+    # Ensure window belongs to the specified stand
+    if db_window.stand_id != stand_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Window with ID {window_id} does not belong to stand with ID {stand_id}",
+        )
+
+    # Update window attributes
+    window_data = updated_window.dict(exclude_unset=True, exclude={"stand_id"})
+    for key, value in window_data.items():
+        setattr(db_window, key, value)
+
+    # Save changes
+    session.add(db_window)
+    session.commit()
+    session.refresh(db_window)
+    return db_window
+
+
+@router.delete("/{stand_id}/windows/{window_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_window(stand_id: int, window_id: int, session: Session = Depends(get_session)):
+    """
+    Delete a window.
+
+    - **stand_id**: The ID of the stand
+    - **window_id**: The ID of the window to delete
+    """
+    # Verify stand exists
+    stand = session.get(ConcessionStand, stand_id)
+    if not stand:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Concession stand with ID {stand_id} not found"
+        )
+
+    # Get the window
+    window = session.get(Window, window_id)
+    if not window:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Window with ID {window_id} not found")
+
+    # Ensure window belongs to the specified stand
+    if window.stand_id != stand_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Window with ID {window_id} does not belong to stand with ID {stand_id}",
+        )
+
+    # Delete the window
+    session.delete(window)
+    session.commit()
+    return None
+
 
 router = APIRouter()
 
