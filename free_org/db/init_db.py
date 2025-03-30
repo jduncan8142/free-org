@@ -3,6 +3,10 @@ import sys
 from sqlmodel import SQLModel, create_engine, Session
 from typing import Generator
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add the parent directory to path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -10,8 +14,8 @@ parent_dir = os.path.dirname(os.path.dirname(current_dir))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-# Database URL - using SQLite
-DATABASE_URL = "sqlite:///./data/concession.db"
+# Database URL - using SQLite from environment variable with fallback
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/concession.db")
 
 # Create the engine
 engine = create_engine(
