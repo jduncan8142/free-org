@@ -342,22 +342,43 @@ endblock %} {% block content %}
             </div>
 
             <div class="col-md-6">
-              <!-- Inventory Item Link -->
+              <!-- Inventory Items Links -->
               <div class="mb-3">
-                <label for="edit-inventory_item_id" class="form-label"
-                  >Linked Inventory Item</label
-                >
-                <select
-                  class="form-select"
-                  id="edit-inventory_item_id"
-                  name="inventory_item_id">
-                  <option value="">-- No Inventory Link --</option>
-                  <!-- Will be populated via API based on stand selection -->
-                </select>
+                <label class="form-label">Linked Inventory Items</label>
+                <div
+                  class="inventory-items-container border rounded p-2"
+                  id="edit-inventory-items-container">
+                  <div class="mb-2">
+                    <select
+                      class="form-select mb-2"
+                      id="edit-inventory_item_select">
+                      <option value="">-- Select Inventory Item --</option>
+                      <!-- Will be populated via API based on stand selection -->
+                    </select>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary"
+                      id="edit-add-inventory-item-btn">
+                      <i class="fas fa-plus"></i> Add Item
+                    </button>
+                  </div>
+                  <ul class="list-group" id="edit-linked-inventory-items">
+                    <li
+                      class="list-group-item text-muted"
+                      id="edit-no-items-message">
+                      No items linked
+                    </li>
+                  </ul>
+                </div>
                 <small class="form-text text-muted">
-                  When linked, this menu item will be automatically removed from
-                  displays when inventory is low
+                  This menu item will be automatically removed from displays
+                  when ANY linked inventory item is low
                 </small>
+                <input
+                  type="hidden"
+                  id="edit-linked_inventory_ids"
+                  name="edit-linked_inventory_ids"
+                  value="" />
               </div>
 
               <!-- Featured -->
