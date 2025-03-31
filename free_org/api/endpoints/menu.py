@@ -352,7 +352,7 @@ async def unlink_inventory_item(menu_item_id: int, inventory_item_id: int, sessi
     return {"success": True, "message": "Inventory item unlinked successfully"}
 
 
-@router.get("/inventory_for_menu_item", response_model=List[InventoryItem])
+@router.get("/inventory-items-by-menu-query", response_model=List[InventoryItem])
 def get_inventory_items_for_menu(
     menu_item_id: int = Query(..., description="The ID of the menu item"), session: Session = Depends(get_session)
 ):
