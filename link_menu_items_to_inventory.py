@@ -39,7 +39,8 @@ print(f"Using inventory item IDs: {inventory_item_ids}")
 link_url = f"http://localhost:8000/api/menu/{menu_item_id}/inventory"
 headers = {"Content-Type": "application/json"}
 
-# The API expects a specific format with inventory_item_ids
+# The API expects the data in a specific format - check the exact API definition
+# in menu.py (class InventoryItemList)
 link_data = {"inventory_item_ids": inventory_item_ids}
 
 print(f"\nLinking inventory items {inventory_item_ids} to menu item {menu_item_id}...")
