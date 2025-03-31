@@ -238,6 +238,10 @@ def get_menu_item_inventory_items(menu_item_id: int, session: Session = Depends(
     return inventory_items
 
 
+# Specific path routes must be declared BEFORE more general path routes
+# to prevent FastAPI from matching the wrong route
+
+
 @router.get("/stand/{stand_id}/display", response_model=List[MenuItem])
 async def get_stand_menu_for_display(stand_id: int, session: Session = Depends(get_session)):
     """
