@@ -979,8 +979,14 @@ endblock %} {% block content %}
       btn.addEventListener('click', function() {
         const itemId = this.getAttribute('data-item-id');
 
-        // Fetch menu item details
-        fetch(`/api/menu/${itemId}`)
+        // Fetch menu item details - will include inventory_items directly
+        fetch(`/api/menu/${itemId}?_t=${Date.now()}`, {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        })
           .then(response => response.json())
           .then(item => {
             // Populate form fields
@@ -999,19 +1005,14 @@ endblock %} {% block content %}
             // Clear existing linked items
             clearInventoryItems(true);
 
-            // Fetch the menu item's inventory items
-            fetch(`/api/menu/${item.id}/inventory_items`)
-              .then(response => response.json())
-              .then(inventoryItems => {
-                // Add each inventory item to the edit form's linked items list
-                editLinkedInventoryItems = [];
-                inventoryItems.forEach(invItem => {
-                  addInventoryItem(invItem.id, invItem.name, true);
-                });
-              })
-              .catch(error => {
-                console.error('Error loading linked inventory items:', error);
+            // Use the inventory_items directly from the menu item response
+            if (item.inventory_items && item.inventory_items.length > 0) {
+              // Add each inventory item to the edit form's linked items list
+              editLinkedInventoryItems = [];
+              item.inventory_items.forEach(invItem => {
+                addInventoryItem(invItem.id, invItem.name, true);
               });
+            }
 
             // Show modal
             const modal = new bootstrap.Modal(document.getElementById('editMenuItemModal'));
