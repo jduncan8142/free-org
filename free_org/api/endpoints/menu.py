@@ -245,6 +245,33 @@ async def get_stand_menu_for_display(stand_id: int, session: Session = Depends(g
     return displayable_items
 
 
+@router.get("/{menu_item_id}/inventory_items", response_model=List[InventoryItem])
+def get_menu_item_inventory_items(menu_item_id: int, session: Session = Depends(get_session)):
+    """
+    Get all inventory items linked to a specific menu item.
+
+    - **menu_item_id**: The ID of the menu item
+    """
+    # Verify menu item exists
+    menu_item = session.get(MenuItem, menu_item_id)
+    if not menu_item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Menu item with ID {menu_item_id} not found")
+
+    # Get the inventory item IDs linked to this menu item
+    links = session.exec(select(MenuItemInventory).where(MenuItemInventory.menu_item_id == menu_item_id)).all()
+
+    inventory_item_ids = [link.inventory_item_id for link in links]
+
+    # If no inventory items are linked, return an empty list
+    if not inventory_item_ids:
+        return []
+
+    # Get the inventory items
+    inventory_items = session.exec(select(InventoryItem).where(InventoryItem.id.in_(inventory_item_ids))).all()
+
+    return inventory_items
+
+
 @router.post("/{menu_item_id}/inventory", status_code=status.HTTP_200_OK)
 async def link_inventory_items(
     menu_item_id: int, inventory_items: InventoryItemList, session: Session = Depends(get_session)
