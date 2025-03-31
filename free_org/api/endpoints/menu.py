@@ -50,7 +50,23 @@ async def get_all_menu_items(
     return items
 
 
-@router.get("/{menu_item_id}")
+# Create a Pydantic model to include inventory items
+class MenuItemWithInventory(BaseModel):
+    id: int
+    name: str
+    price: float
+    description: Optional[str] = None
+    is_available: bool = True
+    is_featured: bool = False
+    stand_id: Optional[int] = None
+    inventory_item_id: Optional[int] = None  # Legacy field
+    image_path: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    inventory_items: List[dict] = []
+
+
+@router.get("/{menu_item_id}", response_model=MenuItemWithInventory)
 async def get_menu_item(menu_item_id: int, session: Session = Depends(get_session)):
     """
     Get a specific menu item by ID, including its linked inventory items.
@@ -69,11 +85,11 @@ async def get_menu_item(menu_item_id: int, session: Session = Depends(get_sessio
     if inventory_item_ids:
         inventory_items = session.exec(select(InventoryItem).where(InventoryItem.id.in_(inventory_item_ids))).all()
 
-    # Convert to dict for adding inventory items
+    # Convert to our response model with inventory items
     item_dict = item.model_dump()
     item_dict["inventory_items"] = [inv.model_dump() for inv in inventory_items]
 
-    return item_dict
+    return MenuItemWithInventory(**item_dict)
 
 
 @router.post("/", response_model=MenuItem, status_code=status.HTTP_201_CREATED)
