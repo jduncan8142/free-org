@@ -903,7 +903,7 @@ endblock %} {% block content %}
 
                     // Troubleshoot and fix inventory items loading
                     console.log(`Fetching inventory items for menu item ${item.id}`);
-                    fetch(`/api/menu/inventory_for_menu_item?menu_item_id=${item.id}`)
+                    fetch(`/api/menu/inventory-items-by-menu-query?menu_item_id=${item.id}`)
                       .then(response => {
                         console.log(`Inventory items response for item ${item.id}:`, response.status);
                         if (!response.ok) {
