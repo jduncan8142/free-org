@@ -777,12 +777,21 @@ endblock %} {% block content %}
       queryParams.append('stand_id', standId);
     }
 
+    // Add cache-busting timestamp to prevent caching
+    queryParams.append('_t', Date.now());
+
     // Show loading state
     document.getElementById('loading-row').classList.remove('d-none');
     document.getElementById('empty-state').classList.add('d-none');
 
     // Fetch menu items from API
-    fetch(`/api/menu/?${queryParams.toString()}`)
+    fetch(`/api/menu/?${queryParams.toString()}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    })
       .then(response => response.json())
       .then(menuItems => {
         // Hide loading row
@@ -804,7 +813,13 @@ endblock %} {% block content %}
         }
 
         // Get stands for lookup
-        return fetch('/api/stands/')
+        return fetch('/api/stands/', {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        })
           .then(response => response.json())
           .then(stands => {
             // Create lookup map for stand names
@@ -815,64 +830,82 @@ endblock %} {% block content %}
 
             // Populate table
             const tableBody = document.getElementById('menu-table').querySelector('tbody');
-            // Clear existing rows (except loading row which will be hidden)
+            // Clear existing rows
             tableBody.innerHTML = '';
 
-            // Process items and build table rows
-            Promise.all(menuItems.map(item => {
-              const row = document.createElement('tr');
-
-              // Name column with description tooltip
-              const nameCell = document.createElement('td');
-              nameCell.textContent = item.name;
-              if (item.description) {
-                nameCell.setAttribute('data-bs-toggle', 'tooltip');
-                nameCell.setAttribute('title', item.description);
-              }
-              row.appendChild(nameCell);
-
-              // Price column
-              const priceCell = document.createElement('td');
-              priceCell.textContent = `$${item.price.toFixed(2)}`;
-              row.appendChild(priceCell);
-
-              // Stand column
-              const standCell = document.createElement('td');
-              standCell.textContent = item.stand_id ? standMap.get(item.stand_id) : '—';
-              row.appendChild(standCell);
-
-              // Inventory Items column
-              const inventoryCell = document.createElement('td');
-              row.appendChild(inventoryCell);
-
-              // Fetch inventory items for this menu item
-              return fetch(`/api/menu/${item.id}/inventory_items`)
+            // Process each menu item - get full details for each item
+            const fetchPromises = menuItems.map(menuItemSummary => {
+              // Fetch full details for each menu item, which will include inventory_items
+              return fetch(`/api/menu/${menuItemSummary.id}?_t=${Date.now()}`, {
+                headers: {
+                  'Cache-Control': 'no-cache, no-store, must-revalidate',
+                  'Pragma': 'no-cache',
+                  'Expires': '0'
+                }
+              })
                 .then(response => response.json())
-                .then(inventoryItems => {
-                  if (inventoryItems.length === 0) {
+                .catch(error => {
+                  console.error(`Error fetching details for item ${menuItemSummary.id}:`, error);
+                  // Return basic info if detailed fetch fails
+                  return menuItemSummary;
+                });
+            });
+
+            // Wait for all item details to be fetched
+            return Promise.all(fetchPromises)
+              .then(detailedItems => {
+                // Create and add a row for each menu item
+                detailedItems.forEach(item => {
+                  const row = document.createElement('tr');
+
+                  // Name column with description tooltip
+                  const nameCell = document.createElement('td');
+                  nameCell.textContent = item.name;
+                  if (item.description) {
+                    nameCell.setAttribute('data-bs-toggle', 'tooltip');
+                    nameCell.setAttribute('title', item.description);
+                  }
+                  row.appendChild(nameCell);
+
+                  // Price column
+                  const priceCell = document.createElement('td');
+                  priceCell.textContent = `$${item.price.toFixed(2)}`;
+                  row.appendChild(priceCell);
+
+                  // Stand column
+                  const standCell = document.createElement('td');
+                  standCell.textContent = item.stand_id ? standMap.get(item.stand_id) : '—';
+                  row.appendChild(standCell);
+
+                  // Inventory Items column - use the inventory_items property included in the response
+                  const inventoryCell = document.createElement('td');
+
+                  // Check if inventory_items exists and has items
+                  if (!item.inventory_items || item.inventory_items.length === 0) {
                     inventoryCell.textContent = '—';
                   } else {
-                    const itemNames = inventoryItems.map(inv => inv.name);
+                    const itemNames = item.inventory_items.map(inv => inv.name);
                     inventoryCell.innerHTML = `
                       <ul class="list-unstyled mb-0">
                         ${itemNames.map(name => `<li><small>${name}</small></li>`).join('')}
                       </ul>
                     `;
                   }
+                  row.appendChild(inventoryCell);
 
-                  // Add status cell with appropriate badge
+                  // Status cell based on availability and inventory status
                   const statusCell = document.createElement('td');
 
                   if (!item.is_available) {
                     // Manually set unavailable
                     statusCell.innerHTML = '<span class="badge bg-secondary">Unavailable</span>';
-                  } else if (inventoryItems.length === 0) {
+                  } else if (!item.inventory_items || item.inventory_items.length === 0) {
                     // No linked items
                     statusCell.innerHTML = '<span class="badge bg-success">Available</span>';
                   } else {
                     // Check for any low stock or out of stock items
-                    const outOfStock = inventoryItems.some(inv => inv.quantity <= 0);
-                    const lowStock = inventoryItems.some(inv => !outOfStock && inv.quantity <= inv.minimum_threshold);
+                    const outOfStock = item.inventory_items.some(inv => inv.quantity <= 0);
+                    const lowStock = item.inventory_items.some(inv => !outOfStock && inv.quantity <= inv.minimum_threshold);
 
                     if (outOfStock) {
                       statusCell.innerHTML = '<span class="badge bg-danger">Out of Stock</span>';
@@ -882,7 +915,6 @@ endblock %} {% block content %}
                       statusCell.innerHTML = '<span class="badge bg-success">Available</span>';
                     }
                   }
-
                   row.appendChild(statusCell);
 
                   // Featured column
@@ -895,74 +927,19 @@ endblock %} {% block content %}
                   // Actions column
                   appendActionsCell(row, item);
 
-                  return row;
-                })
-                .catch(error => {
-                  console.error('Error fetching inventory items:', error);
-                  inventoryCell.textContent = 'Loading items...';
-
-                    // Troubleshoot and fix inventory items loading
-            console.log(`Fetching inventory items for menu item ${item.id}`);
-            fetch(`/api/menu/_query/inventory-items-by-menu?menu_item_id=${item.id}`)
-                .then(response => {
-                        console.log(`Inventory items response for item ${item.id}:`, response.status);
-                        if (!response.ok) {
-                          throw new Error(`Status: ${response.status}`);
-                        }
-                        return response.json();
-                      })
-                      .then(inventoryItems => {
-                        console.log(`Inventory items for menu item ${item.id}:`, inventoryItems);
-
-                        if (inventoryItems.length === 0) {
-                          inventoryCell.textContent = '—';
-                        } else {
-                          const itemNames = inventoryItems.map(inv => inv.name);
-                          inventoryCell.innerHTML = `
-                            <ul class="list-unstyled mb-0">
-                              ${itemNames.map(name => `<li><small>${name}</small></li>`).join('')}
-                            </ul>
-                          `;
-                        }
-                      })
-                      .catch(error => {
-                        console.error(`Error fetching inventory items for menu item ${item.id}:`, error);
-                        inventoryCell.textContent = 'Error loading items';
-                      });
-                  // Add status cell with generic badge
-                  const statusCell = document.createElement('td');
-                  statusCell.innerHTML = item.is_available
-                    ? '<span class="badge bg-success">Available</span>'
-                    : '<span class="badge bg-secondary">Unavailable</span>';
-                  row.appendChild(statusCell);
-
-                  // Featured column
-                  const featuredCell = document.createElement('td');
-                  featuredCell.innerHTML = item.is_featured
-                    ? '<span class="badge bg-info"><i class="fas fa-star"></i> Featured</span>'
-                    : '—';
-                  row.appendChild(featuredCell);
-
-                  // Actions column
-                  appendActionsCell(row, item);
-
-                  return row;
+                  // Add the row to the table
+                  tableBody.appendChild(row);
                 });
-            }))
-            .then(rows => {
-              rows.forEach(row => {
-                tableBody.appendChild(row);
-              });
 
-              // Initialize tooltips
-              var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-              tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
-              });
+                // Initialize tooltips
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                  return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
 
-              // Setup action buttons
-              setupActionButtons();
-            });
+                // Setup action buttons
+                setupActionButtons();
+              });
           });
       })
       .catch(error => {
