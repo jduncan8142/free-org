@@ -50,17 +50,30 @@ async def get_all_menu_items(
     return items
 
 
-@router.get("/{menu_item_id}", response_model=MenuItem)
+@router.get("/{menu_item_id}")
 async def get_menu_item(menu_item_id: int, session: Session = Depends(get_session)):
     """
-    Get a specific menu item by ID.
+    Get a specific menu item by ID, including its linked inventory items.
 
     - **menu_item_id**: The ID of the menu item to retrieve
     """
     item = session.get(MenuItem, menu_item_id)
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Menu item with ID {menu_item_id} not found")
-    return item
+
+    # Get the inventory items for this menu item
+    links = session.exec(select(MenuItemInventory).where(MenuItemInventory.menu_item_id == menu_item_id)).all()
+    inventory_item_ids = [link.inventory_item_id for link in links]
+
+    inventory_items = []
+    if inventory_item_ids:
+        inventory_items = session.exec(select(InventoryItem).where(InventoryItem.id.in_(inventory_item_ids))).all()
+
+    # Convert to dict for adding inventory items
+    item_dict = item.model_dump()
+    item_dict["inventory_items"] = [inv.model_dump() for inv in inventory_items]
+
+    return item_dict
 
 
 @router.post("/", response_model=MenuItem, status_code=status.HTTP_201_CREATED)
