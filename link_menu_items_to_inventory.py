@@ -35,22 +35,15 @@ print(f"\nUsing menu item ID {menu_item_id} ({menu_items[0]['name']})")
 inventory_item_ids = [item["id"] for item in inventory_items[:2]]
 print(f"Using inventory item IDs: {inventory_item_ids}")
 
-# Get the current menu item details to update
-item_url = f"http://localhost:8000/api/menu/{menu_item_id}"
-menu_item_response = requests.get(item_url)
-menu_item_data = menu_item_response.json()
-
-# Prepare the update data - keep all existing fields but add inventory_item_ids
-update_data = menu_item_data.copy()
-# Add inventory_item_ids field directly in the update_data
-update_data["inventory_item_ids"] = inventory_item_ids
-
-# Link the inventory items to the menu item using PUT endpoint
-link_url = f"http://localhost:8000/api/menu/{menu_item_id}"
+# Link the inventory items to the menu item using the specific inventory endpoint
+link_url = f"http://localhost:8000/api/menu/{menu_item_id}/inventory"
 headers = {"Content-Type": "application/json"}
 
+# The API expects a specific format with inventory_item_ids
+link_data = {"inventory_item_ids": inventory_item_ids}
+
 print(f"\nLinking inventory items {inventory_item_ids} to menu item {menu_item_id}...")
-link_response = requests.put(link_url, headers=headers, json=update_data)
+link_response = requests.post(link_url, headers=headers, json=link_data)
 print(f"Status code: {link_response.status_code}")
 try:
     print(f"Response: {link_response.json()}")
