@@ -902,9 +902,9 @@ endblock %} {% block content %}
                   inventoryCell.textContent = 'Loading items...';
 
                     // Troubleshoot and fix inventory items loading
-                    console.log(`Fetching inventory items for menu item ${item.id}`);
-                    fetch(`/api/menu/inventory-items-by-menu-query?menu_item_id=${item.id}`)
-                      .then(response => {
+            console.log(`Fetching inventory items for menu item ${item.id}`);
+            fetch(`/api/menu/_query/inventory-items-by-menu?menu_item_id=${item.id}`)
+                .then(response => {
                         console.log(`Inventory items response for item ${item.id}:`, response.status);
                         if (!response.ok) {
                           throw new Error(`Status: ${response.status}`);
