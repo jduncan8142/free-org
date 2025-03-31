@@ -350,3 +350,30 @@ async def unlink_inventory_item(menu_item_id: int, inventory_item_id: int, sessi
     session.commit()
 
     return {"success": True, "message": "Inventory item unlinked successfully"}
+
+
+@router.get("/inventory_for_menu_item", response_model=List[InventoryItem])
+def get_inventory_items_for_menu(menu_item_id: int, session: Session = Depends(get_session)):
+    """
+    Alternative endpoint to get all inventory items linked to a specific menu item using query parameters.
+
+    - **menu_item_id**: The ID of the menu item as a query parameter
+    """
+    # Verify menu item exists
+    menu_item = session.get(MenuItem, menu_item_id)
+    if not menu_item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Menu item with ID {menu_item_id} not found")
+
+    # Get the inventory item IDs linked to this menu item
+    links = session.exec(select(MenuItemInventory).where(MenuItemInventory.menu_item_id == menu_item_id)).all()
+
+    inventory_item_ids = [link.inventory_item_id for link in links]
+
+    # If no inventory items are linked, return an empty list
+    if not inventory_item_ids:
+        return []
+
+    # Get the inventory items
+    inventory_items = session.exec(select(InventoryItem).where(InventoryItem.id.in_(inventory_item_ids))).all()
+
+    return inventory_items
