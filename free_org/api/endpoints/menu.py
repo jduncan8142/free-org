@@ -353,7 +353,9 @@ async def unlink_inventory_item(menu_item_id: int, inventory_item_id: int, sessi
 
 
 @router.get("/inventory_for_menu_item", response_model=List[InventoryItem])
-def get_inventory_items_for_menu(menu_item_id: int, session: Session = Depends(get_session)):
+def get_inventory_items_for_menu(
+    menu_item_id: int = Query(..., description="The ID of the menu item"), session: Session = Depends(get_session)
+):
     """
     Alternative endpoint to get all inventory items linked to a specific menu item using query parameters.
 
