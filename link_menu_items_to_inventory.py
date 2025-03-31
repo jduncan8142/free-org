@@ -28,22 +28,29 @@ for item in menu_items:
     print(f"ID: {item['id']}, Name: {item['name']}")
 
 # Prompt user to select a menu item to link (in this example we'll just use the first one)
-menu_item_id = menu_items[0]['id']
+menu_item_id = menu_items[0]["id"]
 print(f"\nUsing menu item ID {menu_item_id} ({menu_items[0]['name']})")
 
 # Prompt user to select inventory items to link (in this example we'll use first two if available)
-inventory_item_ids = [item['id'] for item in inventory_items[:2]]
+inventory_item_ids = [item["id"] for item in inventory_items[:2]]
 print(f"Using inventory item IDs: {inventory_item_ids}")
 
-# Link the inventory items to the menu item using the correct format
-link_url = f"http://localhost:8000/api/menu/{menu_item_id}/inventory"
+# Get the current menu item details to update
+item_url = f"http://localhost:8000/api/menu/{menu_item_id}"
+menu_item_response = requests.get(item_url)
+menu_item_data = menu_item_response.json()
+
+# Prepare the update data - keep all existing fields but add inventory_item_ids
+update_data = menu_item_data.copy()
+# Add inventory_item_ids field directly in the update_data
+update_data["inventory_item_ids"] = inventory_item_ids
+
+# Link the inventory items to the menu item using PUT endpoint
+link_url = f"http://localhost:8000/api/menu/{menu_item_id}"
 headers = {"Content-Type": "application/json"}
-link_data = {
-    "inventory_item_ids": inventory_item_ids
-}
 
 print(f"\nLinking inventory items {inventory_item_ids} to menu item {menu_item_id}...")
-link_response = requests.post(link_url, headers=headers, json=link_data)
+link_response = requests.put(link_url, headers=headers, json=update_data)
 print(f"Status code: {link_response.status_code}")
 try:
     print(f"Response: {link_response.json()}")
@@ -59,7 +66,7 @@ print(f"Status code: {verify_response.status_code}")
 try:
     menu_item_details = verify_response.json()
     print(f"Menu item details: {json.dumps(menu_item_details, indent=2)}")
-    
+
     # Check for inventory_items in the response
     if "inventory_items" in menu_item_details:
         inventory_items = menu_item_details["inventory_items"]
