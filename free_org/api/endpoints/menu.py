@@ -352,12 +352,14 @@ async def unlink_inventory_item(menu_item_id: int, inventory_item_id: int, sessi
     return {"success": True, "message": "Inventory item unlinked successfully"}
 
 
-@router.get("/inventory-items-by-menu-query", response_model=List[InventoryItem])
+# Define query-based endpoints first to ensure they are matched before path param routes
+@router.get("/_query/inventory-items-by-menu", response_model=List[InventoryItem])
 def get_inventory_items_for_menu(
     menu_item_id: int = Query(..., description="The ID of the menu item"), session: Session = Depends(get_session)
 ):
     """
     Alternative endpoint to get all inventory items linked to a specific menu item using query parameters.
+    This endpoint uses a query parameter instead of a path parameter to avoid routing conflicts.
 
     - **menu_item_id**: The ID of the menu item as a query parameter
     """
